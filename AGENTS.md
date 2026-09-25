@@ -7,7 +7,7 @@ Handoff for any IDE agent (Antigravity/Gemini, Claude, Cursor, …). Read this w
 A phone-first field-capture app for appliance intake batches (e.g. a whole apartment complex):
 
 1. Photograph an appliance nameplate.
-2. Claude (vision) reads brand, model, serial; infers appliance type from the model prefix and color from a model suffix when obvious.
+2. Gemini (standalone) or the native Artifact vision runtime reads brand, model, serial; infers appliance type from the model prefix and color from a model suffix when obvious.
 3. The crew confirms or corrects the values, then picks color, type, and defect notes.
 4. Save. The unit number advances. Every device sees the batch live.
 5. Export the batch as XLSX (text-format model/serial and a summary sheet), CSV, or DOCX (landscape report).
@@ -35,12 +35,12 @@ The generated XLSX/DOCX/CSV files were validated with openpyxl and python-docx, 
 **Not verified yet:**
 
 - The handoff to a real phone's camera. It uses `<input type="file" capture="environment">`.
-- Claude's read of real nameplates. The prompt is in `src/extract.ts`.
+- Gemini's read of real nameplates in standalone mode. The prompt is in `src/extract.ts`.
 - Any real backend, because none exists yet. See the next section.
 
 ## ⚠ Runtime dependency — read first
 
-The page never calls a server directly. It reaches storage, photos, Claude, downloads, and identity only through `window.claude.use(name)`. That is the claude.ai Artifact runtime contract; the types are in `src/cap-types/` (contract 0.2.58).
+The page never calls a server directly. It reaches storage, photos, vision sampling, downloads, and identity only through `window.claude.use(name)`. That is the claude.ai Artifact runtime contract; the types are in `src/cap-types/` (contract 0.2.58).
 
 - **Inside a claude.ai artifact:** it works with no backend.
 - **Anywhere else:** `window.claude` is undefined. The page shows "Storage isn't available in this view" and saves nothing.
@@ -79,7 +79,7 @@ npx playwright install chromium   # once, if Playwright has no browser yet
 src/app.tsx        App state, capability init, live subscriptions, every handler (capture→read→save, edit, delete, batch ops, export)
 src/views.tsx      All screens and sheets (presentational): Setup, Batches, List/Table, Camera launcher, Extracting, Confirm/Edit, Menu, Export, Type picker, toasts
 src/store.ts       Every db write: lease, unit numbering, record CRUD, close→compact, reopen, delete batch
-src/extract.ts     Claude vision prompt, response normalization, error copy
+src/extract.ts     Vision prompt, response normalization, error copy
 src/image.ts       Photo decode + EXIF orientation + downscale (1800 px long edge, JPEG q0.82)
 src/export/        Dependency-free ZIP writer + XLSX / DOCX / CSV builders (common.ts = shared columns)
 src/constants.ts   Appliance types (grouped), colors, note chips, caps
@@ -121,7 +121,7 @@ Timestamps are epoch milliseconds.
   - `fc.lastBatch`: reopens the last batch;
   - `fc.draft`: an unsent draft, offered as "Resume".
 
-## Standalone deployment (Vercel + Neon Postgres + Vercel Blob + Anthropic API)
+## Standalone deployment (Vercel + Neon Postgres + Vercel Blob + Gemini API)
 
 ### Option A (recommended first): a runtime shim, with no UI changes
 
@@ -157,11 +157,13 @@ POST   /api/sample             multipart: prompt, tier (quick|default), image �
 - **`downloads.save`:** create an object URL, click a temporary `<a download>`, and resolve `{status:'saved'}`. Outside the artifact sandbox this works normally.
 - **`user`:** get the id from `/api/me`. `can('data.write')` is `true` for signed-in users. `profiles(ids)` maps known ids to names.
 
-**Server-side sample call.** Use the Anthropic Messages API:
+**Server-side sample call.** Use the Google Gen AI SDK:
 
-- model: `claude-haiku-4-5-20251001` for `quick`, `claude-sonnet-5` for `default`
-- `max_tokens` 1024
-- content: `[{type:'image', source:{type:'base64', media_type, data}}, {type:'text', text: prompt}]`
+- SDK: `@google/genai`
+- API key: `GEMINI_API_KEY`
+- model: `gemini-3.8-flash` for both `quick` and `default` initially; override with `GEMINI_QUICK_MODEL` / `GEMINI_DEFAULT_MODEL` if needed
+- `maxOutputTokens: 1024`, `responseMimeType: 'application/json'`
+- contents: inline base64 image part plus the existing client prompt
 - return `{text}`
 
 Keep the prompt in the client (`src/extract.ts`) so both runtimes share it.
@@ -206,7 +208,7 @@ returning expires_at;
 select path, data from docs where parent = $1 order by data -> $2 desc nulls last, path limit $3;
 ```
 
-**Environment variables:** `DATABASE_URL`, `BLOB_READ_WRITE_TOKEN`, `ANTHROPIC_API_KEY`, `APP_PASSCODE`, `SESSION_SECRET`.
+**Environment variables:** `DATABASE_URL`, `BLOB_READ_WRITE_TOKEN`, `GEMINI_API_KEY`, `APP_PASSCODE`, `OWNER_PASSCODE`, `SESSION_SECRET`.
 
 Postgres has no 5,000-document cap. Compaction on close stays harmless and can be removed later.
 
