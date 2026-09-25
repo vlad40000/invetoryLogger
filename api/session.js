@@ -3,20 +3,44 @@
 import { buildSetCookie, requireSession } from './_lib/session.js';
 import crypto from 'node:crypto';
 
-const PASSCODE = process.env.APP_PASSCODE;
-if (!PASSCODE) throw new Error('APP_PASSCODE environment variable is required');
+const CREW_PASSCODE = process.env.APP_PASSCODE;
+const OWNER_PASSCODE = process.env.OWNER_PASSCODE;
+if (!CREW_PASSCODE) throw new Error('APP_PASSCODE environment variable is required');
+if (!OWNER_PASSCODE) throw new Error('OWNER_PASSCODE environment variable is required');
+if (CREW_PASSCODE === OWNER_PASSCODE) {
+  throw new Error('OWNER_PASSCODE must be different from APP_PASSCODE');
+}
 
-// Deterministic user id derived from the passcode (shared single-user mode).
-// In a multi-user deployment you would look users up in a table.
-const OWNER_ID = crypto.createHash('sha256').update('owner:' + PASSCODE).digest('hex').slice(0, 24);
+function sameSecret(input, expected) {
+  const a = crypto.createHash('sha256').update(String(input)).digest();
+  const b = crypto.createHash('sha256').update(expected).digest();
+  return crypto.timingSafeEqual(a, b);
+}
+
+function userId(role, passcode) {
+  return crypto.createHash('sha256').update(`${role}:${passcode}`).digest('hex').slice(0, 24);
+}
 
 export default function handler(req, res) {
   if (req.method === 'POST') {
     const { passcode } = req.body || {};
-    if (typeof passcode !== 'string' || passcode.trim() !== PASSCODE) {
+    if (typeof passcode !== 'string') {
       return res.status(401).json({ error: 'Invalid passcode', code: 'unauthorized' });
     }
-    const payload = { id: OWNER_ID, name: 'Owner', isOwner: true, canEdit: true };
+
+    const trimmed = passcode.trim();
+    const isOwner = sameSecret(trimmed, OWNER_PASSCODE);
+    const isCrew = !isOwner && sameSecret(trimmed, CREW_PASSCODE);
+    if (!isOwner && !isCrew) {
+      return res.status(401).json({ error: 'Invalid passcode', code: 'unauthorized' });
+    }
+
+    const payload = {
+      id: userId(isOwner ? 'owner' : 'crew', isOwner ? OWNER_PASSCODE : CREW_PASSCODE),
+      name: isOwner ? 'Owner' : 'Field Crew',
+      isOwner,
+      canEdit: true,
+    };
     res.setHeader('Set-Cookie', buildSetCookie(payload));
     return res.status(200).json(payload);
   }
