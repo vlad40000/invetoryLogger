@@ -115,7 +115,11 @@
           credentials: 'same-origin',
         });
         if (res.ok) {
-          window.location.replace('/');
+          const requested = new URLSearchParams(window.location.search).get('next') || '/';
+          const safeNext = requested.startsWith('/') && !requested.startsWith('//') && !requested.startsWith('/login.html')
+            ? requested
+            : '/';
+          window.location.replace(safeNext);
         } else {
           errEl.classList.add('visible');
           document.getElementById('passcode').value = '';
