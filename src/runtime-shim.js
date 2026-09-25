@@ -4,16 +4,28 @@
 (() => {
   if (window.claude && typeof window.claude.use === 'function') return;
 
-  const POLL_MS = 3000;
+  const POLL_MS = Number(window.__CLAUDE_SHIM_POLL_MS__) > 0 ? Number(window.__CLAUDE_SHIM_POLL_MS__) : 3000;
   const listeners = new Set();
   let mePromise = null;
+
+  function redirectToLogin() {
+    try {
+      const loc = window.location;
+      if (!loc || loc.pathname === '/login.html') return;
+      const next = `${loc.pathname || '/'}${loc.search || ''}${loc.hash || ''}`;
+      loc.replace(`/login.html?next=${encodeURIComponent(next)}`);
+    } catch {}
+  }
 
   const apiError = async (response) => {
     let payload = null;
     try { payload = await response.clone().json(); } catch {}
     const message = payload?.error || payload?.message || response.statusText || `HTTP ${response.status}`;
     let code = payload?.code || 'unavailable';
-    if (response.status === 404) code = 'invalid_argument';
+    if (response.status === 401) {
+      code = 'unauthorized';
+      redirectToLogin();
+    } else if (response.status === 404) code = 'invalid_argument';
     else if (response.status === 413) code = 'too_large';
     else if (response.status === 429) code = 'rate_limited';
     else if (response.status >= 500) code = 'unavailable';
@@ -59,6 +71,29 @@
     });
   }
 
+  function snapshotFingerprint(value) {
+    if (value && typeof value.data === 'function' && 'exists' in value) {
+      return JSON.stringify({
+        id: value.id,
+        exists: value.exists,
+        data: value.data(),
+        metadata: value.metadata,
+      });
+    }
+    if (value && Array.isArray(value.docs)) {
+      return JSON.stringify({
+        docs: value.docs.map((doc) => ({
+          id: doc.id,
+          exists: doc.exists,
+          data: typeof doc.data === 'function' ? doc.data() : null,
+          metadata: doc.metadata,
+        })),
+        metadata: value.metadata,
+      });
+    }
+    return JSON.stringify(value);
+  }
+
   function subscribe(load, next, error) {
     let stopped = false;
     let timer = null;
@@ -68,7 +103,7 @@
       if (stopped) return;
       try {
         const value = await load();
-        const serialized = JSON.stringify(value);
+        const serialized = snapshotFingerprint(value);
         if (force || serialized !== previous) {
           previous = serialized;
           next(value);
