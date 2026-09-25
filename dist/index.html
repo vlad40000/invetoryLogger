@@ -1,0 +1,1998 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"></head><body><title>Appliance Inventory Logger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Field Capture · Inventory Logger
+   Single deliberate light theme (field use in daylight), from the Claude Design / Figma spec:
+   paper #F4F2ED, ink #0F0F0E, signal #E8472C, IBM Plex Sans + Mono, square corners. */
+:root {
+  --surround: #e5e2da;
+  --paper: #f4f2ed;
+  --band: #ece9e0;
+  --card: #ffffff;
+  --ink: #0f0f0e;
+  --muted: #57544d;
+  --faint: #a8a399;
+  --rule: #dad6cc;
+  --signal: #e8472c;
+  --signal-ink: #b8321b;
+  --ok: #1f7a4d;
+  --ok-bright: #4ade80;
+  --night: #0a0a09;
+  --sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+html {
+  height: 100%;
+  box-sizing: border-box;
+}
+body {
+  height: 100%;
+  margin: 0;
+  background: var(--surround);
+  color: var(--ink);
+  font: 400 14px/1.4 var(--sans);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  overflow: hidden;
+}
+button,
+input,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+button {
+  cursor: pointer;
+  background: none;
+  border: 0;
+  padding: 0;
+  border-radius: 0;
+  text-align: inherit;
+}
+button:disabled {
+  cursor: not-allowed;
+}
+:focus-visible {
+  outline: 2px solid var(--signal);
+  outline-offset: 2px;
+}
+img {
+  max-width: 100%;
+}
+.mono {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+
+#root {
+  height: 100%;
+  display: flex;
+  justify-content: center;
+}
+.app {
+  position: relative;
+  width: 100%;
+  max-width: 480px;
+  height: 100%;
+  background: var(--paper);
+  overflow: hidden;
+}
+@media (min-width: 560px) {
+  #root {
+    padding: 24px 16px;
+  }
+  .app {
+    border: 1px solid var(--ink);
+    box-shadow: 0 30px 80px rgba(15, 15, 14, 0.18);
+  }
+}
+.app.wide {
+  max-width: 1180px;
+}
+
+.screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--paper);
+}
+.screen.dark {
+  background: var(--night);
+  color: #fff;
+  animation: fadeIn 0.18s ease-out;
+}
+.scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* ---------- type */
+.eyebrow {
+  font: 600 10px/1.2 var(--sans);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.label {
+  display: block;
+  font: 600 10px/1.2 var(--sans);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+.label.gap {
+  margin: 24px 0 10px;
+}
+.hint {
+  font: 500 9px/1.3 var(--mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-align: right;
+}
+.hint.ok {
+  color: var(--ok);
+}
+.hint.warn {
+  color: var(--signal-ink);
+}
+.hint.link {
+  color: var(--signal-ink);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.brandline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font: 600 11px/1 var(--sans);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+.brand-sq {
+  width: 16px;
+  height: 16px;
+  background: var(--signal);
+  flex-shrink: 0;
+}
+.title {
+  font: 600 30px/1.05 var(--sans);
+  letter-spacing: -0.01em;
+  margin: 18px 0 0;
+  text-wrap: balance;
+}
+.title.sm {
+  font-size: 24px;
+  margin-top: 14px;
+}
+.lede {
+  font: 400 14px/1.5 var(--sans);
+  color: var(--muted);
+  margin: 10px 0 0;
+  max-width: 300px;
+}
+
+/* ---------- controls */
+.input {
+  display: block;
+  width: 100%;
+  background: var(--card);
+  border: 1px solid var(--ink);
+  border-radius: 0;
+  padding: 12px;
+  font: 500 16px/1.25 var(--sans);
+  color: var(--ink);
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.input:focus {
+  box-shadow: inset 0 0 0 1px var(--ink);
+}
+.input.big {
+  padding: 14px;
+}
+.input.mono {
+  font-family: var(--mono);
+  letter-spacing: 0.02em;
+}
+.input.num {
+  width: 120px;
+  font: 500 18px/1.2 var(--mono);
+  padding: 14px;
+}
+.input.num-wide {
+  max-width: 180px;
+}
+.input.lowconf {
+  border-color: var(--signal);
+  box-shadow: inset 4px 0 0 var(--signal);
+}
+.input.area {
+  font: 400 16px/1.4 var(--sans);
+  resize: vertical;
+  min-height: 64px;
+  margin-top: 8px;
+}
+.input.select {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  text-align: left;
+  padding: 14px 12px;
+  font-size: 15px;
+}
+.placeholder {
+  color: var(--muted);
+  font-weight: 400;
+}
+::placeholder {
+  color: #9b968c;
+  font-weight: 400;
+}
+
+.btn-primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  background: var(--ink);
+  color: #fff;
+  padding: 16px 12px;
+  font: 600 13px/1.15 var(--sans);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  transition: background 0.12s;
+}
+.btn-primary.tall {
+  padding: 20px;
+  letter-spacing: 0.16em;
+}
+.btn-primary:disabled {
+  background: var(--rule);
+  color: #fff;
+}
+.btn-primary.danger {
+  background: var(--signal);
+}
+.arrow {
+  font: 600 16px/1 var(--mono);
+}
+.btn-outline {
+  background: var(--paper);
+  color: var(--ink);
+  border: 1px solid var(--ink);
+  padding: 14px 8px;
+  font: 600 11px/1.15 var(--sans);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  text-align: center;
+  transition: background 0.12s, color 0.12s;
+}
+.btn-outline:disabled {
+  color: var(--faint);
+  border-color: var(--rule);
+}
+.btn-outline.danger {
+  color: var(--signal-ink);
+  border-color: var(--signal);
+}
+.btn-mini {
+  padding: 6px 9px;
+  font: 600 9px/1 var(--sans);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  background: var(--paper);
+  color: var(--ink);
+  border: 1px solid var(--ink);
+  white-space: nowrap;
+}
+.btn-mini.strong {
+  background: var(--ink);
+  color: #fff;
+}
+.btn-mini.danger {
+  color: var(--signal-ink);
+  border-color: var(--signal);
+}
+.btn-text {
+  font: 600 11px/1 var(--sans);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 8px 4px;
+  color: var(--ink);
+}
+.btn-text.light {
+  color: #fff;
+}
+.back {
+  display: inline-block;
+  font: 600 10px/1 var(--sans);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 6px 0;
+  margin-bottom: 14px;
+}
+@media (hover: hover) {
+  .btn-primary:hover:not(:disabled) {
+    background: var(--signal);
+  }
+  .btn-primary.danger:hover:not(:disabled) {
+    background: var(--signal-ink);
+  }
+  .btn-outline:hover:not(:disabled) {
+    background: var(--ink);
+    color: #fff;
+  }
+  .btn-outline.danger:hover:not(:disabled) {
+    background: var(--signal);
+    color: #fff;
+  }
+  .btn-mini:hover {
+    background: var(--ink);
+    color: #fff;
+  }
+  .back:hover {
+    color: var(--ink);
+  }
+}
+.btn-primary:active:not(:disabled),
+.btn-outline:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 6px;
+  font: 600 9px/1 var(--sans);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  border: 1px solid var(--ink);
+  color: var(--ink);
+  white-space: nowrap;
+}
+.chip.open {
+  background: var(--card);
+}
+.chip.closed {
+  background: var(--band);
+  border-color: var(--rule);
+  color: var(--muted);
+}
+.flag {
+  display: inline-block;
+  padding: 2px 4px;
+  font: 600 8px/1 var(--sans);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  background: var(--signal);
+  color: #fff;
+  vertical-align: middle;
+}
+.flag.soft {
+  background: var(--band);
+  color: var(--muted);
+}
+.sw {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  flex-shrink: 0;
+  vertical-align: -1px;
+}
+.sw.lg {
+  width: 100%;
+  height: 12px;
+}
+
+/* ---------- setup */
+.setup-top {
+  padding: 28px 24px 0;
+}
+.setup-body {
+  padding: 32px 24px 12px;
+}
+.start-row {
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+}
+.aside {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  padding: 0 4px;
+  font: 400 12px/1.4 var(--sans);
+  color: var(--muted);
+}
+.howto {
+  background: var(--card);
+  border: 1px solid var(--rule);
+  padding: 16px;
+  margin-top: 28px;
+}
+.howto ol {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.howto li {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  font: 400 13px/1.4 var(--sans);
+}
+.step {
+  width: 18px;
+  height: 18px;
+  background: var(--ink);
+  color: #fff;
+  font: 600 11px/18px var(--mono);
+  text-align: center;
+  flex-shrink: 0;
+}
+.step.go {
+  background: var(--signal);
+}
+.foot {
+  padding: 14px 24px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.status {
+  font: 500 11px/1.4 var(--mono);
+  color: var(--muted);
+}
+.status.warn {
+  color: var(--signal-ink);
+}
+
+/* ---------- batches */
+.batches-top {
+  padding: 24px 20px 18px;
+  border-bottom: 1px solid var(--ink);
+}
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px 10px;
+}
+.batch-list {
+  padding: 0 20px 20px;
+  display: flex;
+  flex-direction: column;
+}
+.group-label {
+  font: 600 9px/1 var(--sans);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 12px 0 6px;
+}
+.batch-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  padding: 14px;
+  background: var(--card);
+  border: 1px solid var(--rule);
+  margin-top: -1px;
+  text-align: left;
+}
+.batch-row:first-of-type,
+.group-label + .batch-row {
+  margin-top: 0;
+}
+.br-main {
+  min-width: 0;
+}
+.br-name {
+  font: 600 16px/1.25 var(--sans);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.br-meta {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+.br-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.br-date {
+  font: 400 11px/1 var(--mono);
+  color: var(--muted);
+}
+@media (hover: hover) {
+  .batch-row:hover {
+    border-color: var(--ink);
+    position: relative;
+    z-index: 1;
+  }
+}
+.empty-note {
+  padding: 24px 0;
+  color: var(--muted);
+}
+.batches-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  padding: 12px 20px 16px;
+  border-top: 1px solid var(--rule);
+  font: 400 11px/1.4 var(--sans);
+  color: var(--muted);
+}
+.batches-foot b {
+  color: var(--ink);
+  font-weight: 600;
+}
+.batches-foot .warn,
+.batches-foot .warn b {
+  color: var(--signal-ink);
+}
+
+/* ---------- list */
+.list-head {
+  padding: 14px 20px 14px;
+  border-bottom: 1px solid var(--ink);
+  background: var(--paper);
+}
+.lh-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.lh-row .back {
+  margin: 0;
+}
+.kebab {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  margin-right: -8px;
+}
+.kebab span {
+  width: 4px;
+  height: 4px;
+  background: var(--ink);
+}
+.lh-name {
+  font: 600 22px/1.15 var(--sans);
+  letter-spacing: -0.01em;
+  margin-top: 2px;
+  overflow-wrap: anywhere;
+}
+.lh-stats {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin-top: 8px;
+}
+.stat {
+  font: 400 11px/1 var(--sans);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.stat b {
+  font: 600 18px/1 var(--mono);
+  color: var(--ink);
+  letter-spacing: 0;
+}
+.lh-stats .stat:first-child {
+  flex-direction: row;
+}
+.vr {
+  width: 1px;
+  height: 12px;
+  background: var(--rule);
+}
+.banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 10px 20px;
+  background: #fff4e8;
+  border-bottom: 1px solid var(--signal);
+  font: 500 12px/1.35 var(--sans);
+}
+.banner-btns {
+  display: flex;
+  gap: 6px;
+}
+.list-body {
+  background: var(--paper);
+}
+.loading-note {
+  padding: 32px 20px;
+  color: var(--muted);
+  font: 500 12px/1.4 var(--mono);
+}
+.grid3 {
+  display: grid;
+  grid-template-columns: minmax(52px, auto) minmax(0, 1fr) 92px;
+  gap: 10px;
+}
+.col-head {
+  padding: 8px 20px;
+  font: 600 10px/1 var(--sans);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: var(--band);
+  border-bottom: 1px solid var(--rule);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.r {
+  text-align: right;
+}
+.rec {
+  border-bottom: 1px solid var(--rule);
+  background: var(--card);
+}
+.rec-row {
+  width: 100%;
+  padding: 12px 20px;
+  text-align: left;
+  align-items: start;
+}
+.rec.open .rec-row {
+  background: var(--card);
+}
+.rec-no {
+  font: 600 14px/1.2 var(--mono);
+}
+.rec-flags {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  margin-top: 4px;
+}
+.rec-main {
+  min-width: 0;
+}
+.rec-title {
+  font: 500 13px/1.3 var(--sans);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rec-model {
+  font: 400 12px/1.3 var(--mono);
+  color: var(--muted);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rec-color {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+.cc {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font: 600 9px/1.1 var(--sans);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: right;
+}
+.caret {
+  font-size: 9px;
+  color: #b3aea4;
+}
+.detail-body {
+  background: #f8f7f3;
+  border-top: 1px solid var(--band);
+  padding: 12px 20px 14px;
+}
+.detail-cols {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+.detail-rows {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+.detail-rows > div {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.detail-rows dt {
+  font: 600 9px/1.6 var(--sans);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #8f8a80;
+  width: 48px;
+  flex-shrink: 0;
+}
+.detail-rows dd {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.thumb {
+  width: 96px;
+  height: 72px;
+  border: 1px solid var(--ink);
+  background: #1a1817;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+.thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.detail-meta {
+  font-size: 10px;
+  color: #8f8a80;
+  letter-spacing: 0.02em;
+  margin-top: 10px;
+  line-height: 1.5;
+}
+.detail-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+/* wide table */
+.rtable {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--card);
+  font-size: 13px;
+}
+.rtable th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--band);
+  text-align: left;
+  font: 600 10px/1 var(--sans);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--rule);
+  white-space: nowrap;
+}
+.rtable th:first-child,
+.rtable td:first-child {
+  padding-left: 20px;
+}
+.rtable td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+}
+.trow {
+  cursor: pointer;
+}
+.trow:focus-visible {
+  outline-offset: -2px;
+}
+@media (hover: hover) {
+  .trow:hover td {
+    background: #faf9f6;
+  }
+}
+.trow.open td {
+  border-bottom-color: transparent;
+}
+.tdetail td {
+  padding: 0;
+}
+.tdetail .detail-body {
+  padding-left: 20px;
+}
+.tdetail .thumb {
+  width: 200px;
+  height: 150px;
+}
+.nowrap {
+  white-space: nowrap;
+}
+.strong {
+  font-weight: 600;
+}
+.muted {
+  color: var(--muted);
+  font-size: 11px;
+}
+.notes-cell {
+  color: var(--muted);
+  max-width: 260px;
+}
+
+/* empty */
+.empty {
+  padding: 48px 24px 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+.empty-plate {
+  width: 120px;
+  height: 120px;
+  border: 2px dashed var(--ink);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 24px;
+  font: 600 11px/1.3 var(--mono);
+  color: var(--muted);
+}
+.empty-title {
+  font: 600 16px/1.3 var(--sans);
+  max-width: 240px;
+}
+.empty-sub {
+  font: 400 13px/1.4 var(--sans);
+  color: var(--muted);
+  margin-top: 8px;
+  max-width: 260px;
+}
+
+/* corner brackets */
+.bk {
+  position: absolute;
+  width: 34px;
+  height: 34px;
+  border: 0 solid var(--signal);
+  pointer-events: none;
+}
+.bk.sm {
+  width: 18px;
+  height: 18px;
+}
+.bk.tl {
+  top: -2px;
+  left: -2px;
+  border-top-width: 3px;
+  border-left-width: 3px;
+}
+.bk.tr {
+  top: -2px;
+  right: -2px;
+  border-top-width: 3px;
+  border-right-width: 3px;
+}
+.bk.bl {
+  bottom: -2px;
+  left: -2px;
+  border-bottom-width: 3px;
+  border-left-width: 3px;
+}
+.bk.br {
+  bottom: -2px;
+  right: -2px;
+  border-bottom-width: 3px;
+  border-right-width: 3px;
+}
+
+/* action bar */
+.actionbar {
+  padding: 14px 20px 18px;
+  background: var(--paper);
+  border-top: 1px solid var(--rule);
+}
+.btn-capture {
+  width: 100%;
+  height: 64px;
+  background: var(--ink);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  font: 600 13px/1 var(--sans);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  transition: background 0.12s;
+}
+@media (hover: hover) {
+  .btn-capture:hover {
+    background: var(--signal);
+  }
+}
+.btn-capture:active {
+  transform: translateY(1px);
+}
+.lens {
+  width: 22px;
+  height: 22px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.lens span {
+  width: 10px;
+  height: 10px;
+  background: var(--signal);
+  border-radius: 50%;
+}
+.pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 10px;
+}
+.actionbar > .pair:first-child {
+  margin-top: 0;
+}
+.actionbar.wide {
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+}
+.actionbar.wide .btn-capture {
+  width: 360px;
+  height: 56px;
+}
+.actionbar.wide .pair {
+  margin-top: 0;
+  width: 360px;
+}
+
+/* ---------- dark screens */
+.dark-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: rgba(0, 0, 0, 0.4);
+}
+.unit-live {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: 600 12px/1 var(--mono);
+}
+.rec-dot {
+  width: 8px;
+  height: 8px;
+  background: var(--signal);
+  border-radius: 50%;
+  animation: blink 1.4s infinite;
+}
+.unit-plain {
+  font: 600 12px/1 var(--mono);
+  padding-right: 4px;
+}
+.unit-plain.dark-ink {
+  font-size: 14px;
+  color: var(--ink);
+}
+.viewfinder {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  min-height: 0;
+}
+.vf-glow {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, #1a1a18 0%, #0a0a09 70%);
+}
+.vf-lines {
+  position: absolute;
+  inset: 0;
+  opacity: 0.04;
+  background-image: repeating-linear-gradient(0deg, #fff 0, #fff 1px, transparent 1px, transparent 3px);
+}
+.frame {
+  position: relative;
+  width: min(300px, 78vw);
+  aspect-ratio: 3 / 2;
+  max-width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+}
+.frame-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+}
+.vf-label {
+  font: 600 10px/1 var(--sans);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.6);
+}
+.vf-sub {
+  font: 400 11px/1.35 var(--mono);
+  color: rgba(255, 255, 255, 0.38);
+}
+.tips {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: rgba(0, 0, 0, 0.4);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  font: 400 11px/1.3 var(--sans);
+  color: rgba(255, 255, 255, 0.65);
+}
+.tips .i {
+  width: 14px;
+  height: 14px;
+  border: 1.5px solid rgba(255, 255, 255, 0.6);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 700 9px/1 var(--sans);
+  flex-shrink: 0;
+}
+.controls {
+  display: grid;
+  grid-template-columns: 1fr 110px 1fr;
+  align-items: center;
+  padding: 22px 20px 26px;
+  background: #000;
+}
+.ctl {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  color: #fff;
+}
+.ctl-box {
+  width: 38px;
+  height: 38px;
+  border: 1.5px solid rgba(255, 255, 255, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 600 15px/1 var(--sans);
+}
+.ctl-label {
+  font: 500 9px/1 var(--sans);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.7);
+}
+.shutter {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  border: 4px solid #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+  transition: transform 0.1s;
+}
+.shutter span {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: #fff;
+}
+.shutter:active {
+  transform: scale(0.94);
+}
+
+.extract-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  min-height: 0;
+}
+.plate-card {
+  position: relative;
+  width: min(300px, 80vw);
+  aspect-ratio: 14 / 9;
+  background: linear-gradient(135deg, #2a2826, #1a1817);
+  border: 1px solid #3a3835;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+.plate-card img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.92;
+}
+.plate-card .bk {
+  border-width: 0;
+}
+.plate-card .bk.tl {
+  top: 0;
+  left: 0;
+  border-top-width: 2px;
+  border-left-width: 2px;
+}
+.plate-card .bk.tr {
+  top: 0;
+  right: 0;
+  border-top-width: 2px;
+  border-right-width: 2px;
+}
+.plate-card .bk.bl {
+  bottom: 0;
+  left: 0;
+  border-bottom-width: 2px;
+  border-left-width: 2px;
+}
+.plate-card .bk.br {
+  bottom: 0;
+  right: 0;
+  border-bottom-width: 2px;
+  border-right-width: 2px;
+}
+.scanline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 3px;
+  background: linear-gradient(180deg, rgba(232, 71, 44, 0), rgba(232, 71, 44, 0.95), rgba(232, 71, 44, 0));
+  box-shadow: 0 0 12px var(--signal);
+  animation: scan 1.4s linear infinite;
+  z-index: 1;
+}
+.extract-copy {
+  margin-top: 30px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.reading {
+  font: 600 14px/1.3 var(--sans);
+  letter-spacing: 0.04em;
+}
+.stepdots {
+  display: flex;
+  gap: 16px;
+  margin-top: 16px;
+}
+.sd {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font: 500 10px/1 var(--mono);
+  letter-spacing: 0.1em;
+  color: #8f887b;
+  transition: color 0.3s;
+}
+.sd i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  transition: background 0.3s;
+}
+.sd.done {
+  color: var(--ok-bright);
+}
+.sd.done i {
+  background: var(--ok-bright);
+}
+.sd.active {
+  color: #ff8a73;
+}
+.sd.active i {
+  background: var(--signal);
+  box-shadow: 0 0 6px var(--signal);
+  animation: blink 0.8s infinite;
+}
+.bar {
+  width: 220px;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.15);
+  margin-top: 24px;
+  overflow: hidden;
+  position: relative;
+}
+.bar span {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 40%;
+  background: var(--signal);
+  animation: sweep 1.3s ease-in-out infinite;
+}
+.model-tag {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.45);
+  letter-spacing: 0.08em;
+  margin-top: 10px;
+}
+.skip {
+  margin-top: 22px;
+  color: rgba(255, 255, 255, 0.75);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ---------- confirm */
+.cf-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--ink);
+  background: var(--paper);
+}
+.spacer60 {
+  width: 60px;
+}
+.form {
+  padding: 0 18px 8px;
+  max-width: 640px;
+  margin: 0 auto;
+}
+.form-end {
+  height: 12px;
+}
+.cf-photo-row {
+  display: flex;
+  gap: 12px;
+  align-items: stretch;
+  padding: 14px 0 16px;
+  border-bottom: 1px solid var(--rule);
+}
+.cf-thumb {
+  position: relative;
+  width: 104px;
+  height: 78px;
+  background: linear-gradient(135deg, #2a2826, #1a1817);
+  border: 1px solid var(--ink);
+  flex-shrink: 0;
+  overflow: hidden;
+}
+.cf-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.ptag {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  padding: 3px 5px;
+  font: 600 8px/1 var(--sans);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  background: rgba(15, 15, 14, 0.8);
+  color: #fff;
+}
+.ptag.bad {
+  background: var(--signal);
+}
+.cf-nophoto {
+  width: 104px;
+  height: 78px;
+  border: 2px dashed var(--ink);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font: 600 9px/1.2 var(--mono);
+  color: var(--muted);
+}
+.cf-ext {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 8px;
+}
+.cf-detail {
+  font: 500 13px/1.35 var(--sans);
+  margin-top: 5px;
+}
+.cf-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.inline-note {
+  margin-top: 12px;
+  padding: 8px 10px;
+  background: #fff4e8;
+  border-left: 3px solid var(--signal);
+  font: 500 12px/1.4 var(--sans);
+}
+.field {
+  margin-top: 16px;
+}
+.field-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 7px;
+  min-height: 22px;
+}
+.mini-actions {
+  display: flex;
+  gap: 6px;
+}
+.field-note {
+  margin-top: 6px;
+  font: 500 11px/1.4 var(--sans);
+  color: var(--muted);
+}
+.field-note.warn {
+  color: var(--signal-ink);
+}
+.chips {
+  display: grid;
+  gap: 6px;
+}
+.chips.colors {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.chips.notes {
+  display: flex;
+  flex-wrap: wrap;
+}
+.chip-btn {
+  border: 1px solid var(--ink);
+  background: var(--card);
+  color: var(--ink);
+  font: 600 10px/1.15 var(--sans);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.chip-btn.color {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 7px;
+  padding: 8px 7px 9px;
+  text-align: left;
+  min-height: 58px;
+}
+.chip-btn.note {
+  padding: 8px 11px;
+}
+.chip-btn.on {
+  background: var(--ink);
+  color: #fff;
+}
+.chip-btn.suggested {
+  outline: 2px dashed var(--signal);
+  outline-offset: -4px;
+}
+.savebar {
+  padding: 12px 18px 16px;
+  background: var(--paper);
+  border-top: 1px solid var(--rule);
+}
+.savebtns {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 10px;
+  max-width: 640px;
+  margin: 0 auto;
+}
+.save-error,
+.save-hint {
+  max-width: 640px;
+  margin: 0 auto 10px;
+  font: 500 12px/1.4 var(--sans);
+}
+.save-error {
+  color: var(--signal-ink);
+  padding: 8px 10px;
+  background: #fff4e8;
+  border-left: 3px solid var(--signal);
+}
+.save-hint {
+  color: var(--muted);
+}
+
+/* ---------- sheets */
+.overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 15, 14, 0.55);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  z-index: 50;
+  animation: fadeIn 0.15s ease-out;
+}
+.sheet {
+  background: var(--paper);
+  border-top: 3px solid var(--ink);
+  max-height: 88%;
+  display: flex;
+  flex-direction: column;
+  animation: slideUp 0.22s cubic-bezier(0.2, 0.7, 0.2, 1);
+  overflow: hidden;
+}
+.app.wide .sheet {
+  width: 480px;
+  margin: 0 auto;
+  border: 1px solid var(--ink);
+  border-top-width: 3px;
+  border-bottom: 0;
+}
+.sheet.tall {
+  max-height: 82%;
+}
+.sheet.accent {
+  border-top-color: var(--signal);
+}
+.sheet-head {
+  padding: 14px 18px 12px;
+  border-bottom: 1px solid var(--rule);
+}
+.sheet-head.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom-color: var(--ink);
+}
+.sheet-head.ink {
+  border-bottom-color: var(--ink);
+}
+.sheet-title {
+  font: 600 16px/1.25 var(--sans);
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+}
+.sheet-title.mono-ish {
+  font-size: 17px;
+}
+.sheet-sub {
+  font: 400 12px/1.4 var(--sans);
+  color: var(--muted);
+  margin-top: 4px;
+}
+.sheet-body {
+  padding: 16px 18px 6px;
+}
+.sheet-scroll {
+  overflow-y: auto;
+  padding: 4px 0;
+}
+.sheet-btns {
+  display: flex;
+  gap: 10px;
+  padding: 14px 18px 20px;
+}
+.sheet-btns > * {
+  flex: 1;
+}
+.sheet-btns.flush {
+  padding: 0;
+  margin-top: 22px;
+}
+.confirm-body {
+  padding: 24px 22px 26px;
+}
+.confirm-text {
+  font: 400 13px/1.5 var(--sans);
+  color: var(--muted);
+  margin: 8px 0 0;
+}
+.menu-stats {
+  display: flex;
+  gap: 18px;
+  margin-top: 8px;
+}
+.menu-stats div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.menu-stats b {
+  font: 600 18px/1 var(--mono);
+}
+.menu-stats span {
+  font: 500 9px/1 var(--sans);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.menu-item {
+  width: 100%;
+  padding: 16px 18px;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border-bottom: 1px solid var(--rule);
+  background: var(--paper);
+}
+.menu-item:disabled {
+  opacity: 0.5;
+}
+@media (hover: hover) {
+  .menu-item:hover:not(:disabled),
+  .type-item:hover {
+    background: var(--band);
+  }
+}
+.menu-item .grow {
+  flex: 1;
+}
+.mi-icon {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 600 14px/1 var(--mono);
+  flex-shrink: 0;
+}
+.mi-icon.solid {
+  background: var(--ink);
+  color: #fff;
+}
+.mi-icon.small {
+  font-size: 10px;
+}
+.mi-icon.danger {
+  border-color: var(--signal);
+  color: var(--signal);
+}
+.mi-title {
+  display: block;
+  font: 500 14px/1.2 var(--sans);
+}
+.menu-item.danger .mi-title {
+  color: var(--signal-ink);
+}
+.mi-sub {
+  display: block;
+  font: 400 11px/1.35 var(--sans);
+  color: var(--muted);
+  margin-top: 2px;
+}
+.file-ico {
+  width: 38px;
+  height: 48px;
+  background: var(--card);
+  border: 1.5px solid var(--ink);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 5px;
+  flex-shrink: 0;
+  position: relative;
+  font: 600 8px/1 var(--mono);
+}
+.file-ico .dog {
+  position: absolute;
+  top: -1.5px;
+  right: -1.5px;
+  width: 11px;
+  height: 11px;
+  background: var(--paper);
+  border-left: 1.5px solid var(--ink);
+  border-bottom: 1.5px solid var(--ink);
+}
+.dl {
+  font: 600 13px/1 var(--mono);
+}
+.type-group {
+  padding: 14px 18px 6px;
+  font: 600 10px/1 var(--sans);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.type-item {
+  width: 100%;
+  padding: 14px 18px;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: var(--paper);
+  border-bottom: 1px solid var(--rule);
+  font: 500 14px/1.25 var(--sans);
+}
+.type-item.sel {
+  background: var(--band);
+}
+.sel-tag {
+  font: 600 10px/1 var(--sans);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--signal-ink);
+  white-space: nowrap;
+}
+.pbar {
+  height: 4px;
+  background: var(--rule);
+  overflow: hidden;
+}
+.pbar span {
+  display: block;
+  height: 100%;
+  background: var(--signal);
+  transition: width 0.2s;
+}
+
+/* photo viewer */
+.photo-view {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  background: rgba(10, 10, 9, 0.96);
+  display: flex;
+  flex-direction: column;
+  animation: fadeIn 0.15s ease-out;
+}
+.photo-view img {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  object-fit: contain;
+  padding: 16px;
+}
+.pv-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px 16px;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 12px;
+}
+
+/* toasts */
+.toast-wrap {
+  position: absolute;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 15, 14, 0.3);
+  pointer-events: none;
+  animation: fadeIn 0.12s ease-out;
+}
+.toast {
+  background: var(--ink);
+  color: #fff;
+  padding: 22px 28px;
+  border: 2px solid #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  max-width: 290px;
+  text-align: center;
+  animation: tick 0.28s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.tick {
+  width: 48px;
+  height: 48px;
+  border: 2.5px solid #fff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 600 24px/1 var(--sans);
+}
+.toast-title {
+  font: 600 11px/1 var(--sans);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.toast-detail {
+  font: 500 13px/1.25 var(--mono);
+  color: #ff7a61;
+  word-break: break-all;
+}
+.toast-sub {
+  font: 400 11px/1.4 var(--sans);
+  color: rgba(255, 255, 255, 0.6);
+}
+.notice {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  z-index: 80;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 10px 12px 14px;
+  background: var(--ink);
+  color: #fff;
+  border-left: 4px solid var(--signal);
+  font: 500 13px/1.4 var(--sans);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  animation: slideUp 0.2s ease-out;
+}
+.app.wide .notice {
+  left: auto;
+  right: 20px;
+  width: 420px;
+}
+.notice .btn-text {
+  padding: 2px 4px;
+}
+
+/* ---------- motion */
+@keyframes scan {
+  0% { top: 0%; opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { top: calc(100% - 3px); opacity: 0; }
+}
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+@keyframes sweep {
+  0% { left: -40%; }
+  100% { left: 100%; }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes slideUp {
+  from { transform: translateY(40px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+@keyframes tick {
+  0% { transform: scale(0.6); opacity: 0; }
+  60% { transform: scale(1.06); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .scanline {
+    display: none;
+  }
+}
+
+/* small phones */
+@media (max-width: 360px) {
+  .setup-top,
+  .setup-body,
+  .foot {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+  .grid3 {
+    grid-template-columns: minmax(48px, auto) minmax(0, 1fr) 80px;
+  }
+  .chip-btn.color {
+    font-size: 9px;
+    padding: 7px 5px 8px;
+  }
+}
+
+</style>
+<div id="root"></div>
+<script src="/runtime-shim.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script>
+"use strict";(()=>{var io=Object.create;var Xt=Object.defineProperty;var co=Object.getOwnPropertyDescriptor;var uo=Object.getOwnPropertyNames;var mo=Object.getPrototypeOf,po=Object.prototype.hasOwnProperty;var Jt=(e,n)=>()=>{try{return n||e((n={exports:{}}).exports,n),n.exports}catch(o){throw n=0,o}};var ho=(e,n,o,r)=>{if(n&&typeof n=="object"||typeof n=="function")for(let l of uo(n))!po.call(e,l)&&l!==o&&Xt(e,l,{get:()=>n[l],enumerable:!(r=co(n,l))||r.enumerable});return e};var it=(e,n,o)=>(o=e!=null?io(mo(e)):{},ho(n||!e||!e.__esModule?Xt(o,"default",{value:e,enumerable:!0}):o,e));var dt=Jt((Oo,Zt)=>{Zt.exports=window.React});var Rt=Jt((_o,Qt)=>{Qt.exports=window.ReactDOM});var p=it(dt(),1),Ln=it(Rt(),1);var ct=[{group:"Refrigerator",items:["Side-by-Side Refrigerator","French Door Refrigerator","Standard Refrigerator (Freezer on Top)","Bottom Freezer Refrigerator"]},{group:"Range",items:["Glass Top Electric Range","Coil Top Electric Range","Glass Top Double Oven Electric Range","Induction Range","Gas Range","Double Oven Gas Range"]},{group:"Laundry",items:["Top Load Washer","Front Load Washer","Electric Dryer","Gas Dryer","Electric Washer/Dryer Laundry Center","Gas Washer/Dryer Laundry Center"]},{group:"Other",items:["Dishwasher","Microwave","Water Heater","HVAC","Other"]}],ut=ct.flatMap(e=>e.items),$e=[{name:"White",swatch:"#FFFFFF",bd:"#0F0F0E"},{name:"Stainless",swatch:"linear-gradient(135deg,#dfe1e3 0%,#b9bdc2 55%,#e6e8ea 100%)",bd:"#8a8d91"},{name:"Black",swatch:"#0F0F0E",bd:"#0F0F0E"},{name:"Black Stainless",swatch:"linear-gradient(135deg,#4a4543 0%,#1f1d1c 55%,#3a3634 100%)",bd:"#0F0F0E"},{name:"Bisque",swatch:"#E8D5C0",bd:"#8C7A66"},{name:"Almond",swatch:"#D4C4A8",bd:"#8C7A66"},{name:"Red",swatch:"#B61E1E",bd:"#0F0F0E"},{name:"Other",swatch:"linear-gradient(45deg,#fff 0%,#fff 50%,#B61E1E 50%,#B61E1E 100%)",bd:"#0F0F0E"}],mt=$e.map(e=>e.name),en=["Missing handles","Broken door handle","Broken glass top","Broken bottom oven door","Nameplate worn off","Broken glass display"],tn=new Set(["","no serial","unreadable","no nameplate","n/a","unknown"]),Ae={photo:"Photo",manual:"Manual",noplate:"No nameplate"},Ie=150,nn=5e3;function se(e=20){let n="abcdefghijklmnopqrstuvwxyz0123456789",o=new Uint8Array(e);crypto.getRandomValues(o);let r="";for(let l of o)r+=n[l%n.length];return r}var pt=e=>new Promise(n=>setTimeout(n,e)),G={get(e){try{let n=window.localStorage.getItem(e);return n?JSON.parse(n):null}catch{return null}},set(e,n){try{window.localStorage.setItem(e,JSON.stringify(n))}catch{}},del(e){try{window.localStorage.removeItem(e)}catch{}}};function ye(e){return new Date(e).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"})}function xe(e){let n=new Date(e),o=new Date,r=n.getFullYear()===o.getFullYear();return n.toLocaleDateString("en-US",{month:"short",day:"numeric",...r?{}:{year:"numeric"}})}function ht(e){return!Number.isFinite(e)||e<=0?"0 MB":e<1024*1024?`${Math.max(1,Math.round(e/1024))} KB`:e<1024*1024*1024?`${(e/(1024*1024)).toFixed(e<10*1024*1024?1:0)} MB`:`${(e/(1024*1024*1024)).toFixed(1)} GB`}function _(e){return e&&typeof e=="object"&&"code"in e?String(e.code):"unknown"}function me(e){switch(_(e)){case"busy":return"Another device is saving to this batch right now. Tap save again in a moment.";case"batch_gone":return"This batch was deleted on another device.";case"batch_closed":return"This batch was closed on another device. Reopen it from the menu to add units.";case"quota_exceeded":return"Storage is full. Close finished batches from their menu to compact them, then save again.";case"invalid_argument":return"Your access to this page is view-only, so changes can\u2019t be saved.";case"resource_exhausted":case"rate_limited":return"Too many saves at once. Wait a few seconds and tap save again.";case"revoked":case"not_granted":case"capability_disabled":return"Storage isn\u2019t available in this view anymore. Reload the page.";default:return"Couldn\u2019t reach storage. Check your connection, then tap save again. Nothing typed here is lost."}}function pe(e,n=0,o=9999999){let r=typeof e=="number"?e:parseInt(String(e).trim(),10);return Number.isFinite(r)?Math.min(o,Math.max(n,Math.round(r))):null}async function fo(e){if(typeof createImageBitmap=="function")try{let o=await createImageBitmap(e,{imageOrientation:"from-image"});return{src:o,w:o.width,h:o.height,close:()=>o.close()}}catch{}let n=URL.createObjectURL(e);try{let o=new Image;return o.decoding="async",o.src=n,await o.decode(),{src:o,w:o.naturalWidth,h:o.naturalHeight}}finally{setTimeout(()=>URL.revokeObjectURL(n),1e3)}}async function on(e){var n;try{let o=await fo(e),r=Math.min(1,1800/Math.max(o.w,o.h)),l=Math.max(1,Math.round(o.w*r)),i=Math.max(1,Math.round(o.h*r)),u=document.createElement("canvas");u.width=l,u.height=i;let d=u.getContext("2d");if(!d)throw new Error("no 2d context");d.drawImage(o.src,0,0,l,i),(n=o.close)==null||n.call(o);let h=await new Promise(b=>u.toBlob(b,"image/jpeg",.82));if(!h)throw new Error("encode failed");return{blob:h,url:URL.createObjectURL(h),width:l,height:i}}catch{if(!/^image\/(jpeg|png|webp|gif)$/.test(e.type))throw new Error("unsupported");return{blob:e,url:URL.createObjectURL(e),width:0,height:0}}}var go=`You are reading the rating plate (nameplate / data tag) of a household appliance, photographed during a used-appliance inventory.
+
+Reply with only this JSON object, keys in exactly this order:
+{"brand": "", "model": "", "serial": "", "type": "", "typeReason": "", "color": "", "colorReason": "", "confidence": {"brand": "high", "model": "high", "serial": "high"}, "notAPlate": false}
+
+Field rules:
+- brand: the brand as printed (Whirlpool, GE, Samsung, LG, Frigidaire, Kenmore, Maytag, Amana, Hotpoint, KitchenAid, Bosch, Electrolux, Haier, Roper, Crosley, Estate, Magic Chef, ...). If only the manufacturer is printed (for example "Whirlpool Corporation" on a Kenmore), use the brand the model number belongs to. "" if you cannot tell.
+- model: the model number exactly as printed, every character kept, including leading zeros, periods, slashes and dashes (for example "110.27102310" or "RF28HFEDBSR/AA"). Leave out labels such as "MODEL", "MOD. NO." or "M/N".
+- serial: the serial number exactly as printed, same rules. Leave out labels such as "SERIAL", "SER. NO." or "S/N".
+- Read look-alike characters carefully (0/O, 1/I/L, 5/S, 8/B, 2/Z, 6/G). Never invent characters you cannot see. If part of a value is unreadable, return what is legible and set that field's confidence to "low".
+- type: exactly one of the following, or "" if the plate and model number do not settle it:
+${ut.map(e=>`  ${e}`).join(`
+`)}
+- typeReason: 2 to 4 words naming the evidence, for example "WTW prefix", "JBS = coil top", "RF prefix", "plate says DISHWASHER".
+- color: only when the model number's color code makes the finish clear (for example GE "SS" = Stainless, "WW" = White, "BB" = Black); one of ${mt.join(", ")}. Otherwise "".
+- colorReason: 2 to 4 words such as "SS suffix"; "" when color is "".
+- confidence: "high" when every character of that field was clearly legible, otherwise "low".
+- notAPlate: true when no appliance rating plate is visible in the photo; then leave the other fields "".`,bo=/^(model|mod|m\/n|serial|ser|s\/n|sn)\b[\s.:#-]*(no\.?|number|#)?[\s.:#-]*/i;function Ne(e,n=60,o=!1){let r=typeof e=="string"?e:e==null?"":String(e);if(r=r.replace(/\s+/g," ").trim(),o)for(let l=0;l<2;l++)r=r.replace(bo,"").trim();return r.slice(0,n)}function an(e,n){let o=typeof n=="string"?n.trim().toLowerCase():"";return o&&e.find(r=>r.toLowerCase()===o)||""}function wo(e){return{brand:/"model"\s*:/.test(e),model:/"serial"\s*:/.test(e),serial:/"type"\s*:/.test(e)}}async function sn(e,n,o,r,l){let i=await e.json(go,{images:n,modelTier:o,signal:r,onText:({text:v})=>l(wo(v))}),u=i&&typeof i=="object"&&!Array.isArray(i)?i:{},d=u.confidence&&typeof u.confidence=="object"?u.confidence:{},h=Ne(u.brand,40),b=Ne(u.model,60,!0),N=Ne(u.serial,60,!0),y=["brand","model","serial"].filter(v=>String(d[v]||"").toLowerCase()==="low"&&{brand:h,model:b,serial:N}[v]),D=an(ut,u.type),f=an(mt,u.color);return{brand:h,model:b,serial:N,type:D,typeReason:D?Ne(u.typeReason,32):"",color:f,colorReason:f?Ne(u.colorReason,32):"",low:[...y],notAPlate:u.notAPlate===!0&&!b&&!N,tier:o}}var rn=new Set(["not_granted","sampling_disabled","not_declared","capability_disabled","capability_removed","images_unavailable"]);function ln(e){switch(e){case"not_granted":case"sampling_disabled":case"not_declared":case"capability_disabled":case"capability_removed":case"images_unavailable":return"Plate reading isn\u2019t available here. Type the values from the photo.";case"session_expired":return"Sign in to Claude again to read plates. Type the values for now.";case"rate_limited":return"Claude is busy or your usage limit is reached. Type the values, or tap Re-read in a minute.";case"refused":return"Claude couldn\u2019t read this photo. Type the values or retake it.";case"image_rejected":return"That photo couldn\u2019t be sent for reading. Retake it.";default:return"Couldn\u2019t read the plate this time. Retake, tap Re-read, or type the values."}}var cn="tab_"+se(12);async function $(e){try{return await e()}catch(n){if(_(n)!=="unavailable")throw n;return await pt(300+Math.random()*500),e()}}var te=(e,n)=>e.doc(`batches/${n}`),ee=(e,n)=>e.collection(`batches/${n}/records`),K=(e,n)=>e.collection(`batches/${n}/archive`),Ee=e=>e;async function ft(e){let n=Date.now()+15e3;for(;;){let o;try{o=await $(()=>e.acquire({holder:cn,ttlMs:8e3}))}catch(l){let i=_(l);if(i==="capability_removed"||i==="capability_disabled")return!1;throw l}if(o.acquired)return!0;if(Date.now()>n)throw{code:"busy"};let r=o.expiresAt?Date.parse(o.expiresAt)-Date.now():600;await pt(Math.min(Math.max(r,150),2500)+Math.random()*250)}}function gt(e){e.acquire({holder:cn,ttlMs:1e3}).catch(()=>{})}async function Ce(e,n,o,r){let l=0,i=Array.from({length:Math.min(n,e.length)},async()=>{for(;l<e.length;){let u=e[l++];await o(u),r==null||r()}});await Promise.all(i)}function Fe(e){if(!e.length)return{firstUnit:null,lastUnit:null};let n=e.map(o=>o.no);return{firstUnit:Math.min(...n),lastUnit:Math.max(...n)}}function ke(e){return[...e].sort((n,o)=>n.no-o.no||n.createdAt-o.createdAt)}async function un(e,n,o,r){let l=e.collection("batches").doc(),i=Date.now(),u={name:n,startNumber:o,nextNumber:o,status:"open",archived:!1,count:0,firstUnit:null,lastUnit:null,createdAt:i,updatedAt:i,createdBy:r};return await $(()=>l.set(Ee(u))),{id:l.id,...u}}async function mn(e,n,o){let r=te(e,n),l=await ft(r);try{await $(()=>r.update({...o,updatedAt:Date.now()}))}finally{l&&gt(r)}}async function pn(e,n,o){let r=Fe(o);n.count===o.length&&n.firstUnit===r.firstUnit&&n.lastUnit===r.lastUnit||await $(()=>te(e,n.id).update({count:o.length,...r}))}async function hn(e,n,o,r){let l=te(e,n),i=await ft(l);try{let u=await $(()=>l.get());if(!u.exists)throw{code:"batch_gone"};let d=u.data();if(d.status==="closed")throw{code:"batch_closed"};let h=Number.isFinite(d.nextNumber)?d.nextNumber:o,b=h!==o?o:null,N=Date.now(),y=ee(e,n).doc(),D={...r,no:h,createdAt:N,updatedAt:N,renumberedFrom:b};return await $(()=>y.set(Ee(D))),await $(()=>l.update({nextNumber:h+1,updatedAt:N,count:(d.count||0)+1,firstUnit:d.firstUnit==null?h:Math.min(d.firstUnit,h),lastUnit:d.lastUnit==null?h:Math.max(d.lastUnit,h)})),{id:y.id,no:h,renumberedFrom:b}}finally{i&&gt(l)}}async function fn(e,n,o,r){await $(()=>e.doc(`batches/${n}/records/${o}`).update(Ee({...r,updatedAt:Date.now()}))),await $(()=>te(e,n).update({updatedAt:Date.now()})).catch(()=>{})}async function gn(e,n,o,r){await $(()=>e.doc(`batches/${n}/records/${o.id}`).delete()),await $(()=>te(e,n).update({count:r.length,...Fe(r),updatedAt:Date.now()})).catch(()=>{})}function vo(e){let n=[],o=[],r=0;for(let l of e){let i=JSON.stringify(l).length;o.length&&(o.length>=Ie||r+i>18e4)&&(n.push(o),o=[],r=0),o.push(l),r+=i}return o.length&&n.push(o),n}var dn=e=>"a"+String(e).padStart(3,"0");async function bn(e,n,o){let r=te(e,n),l=await ft(r);try{await $(()=>r.update({status:"closed",updatedAt:Date.now()}))}finally{l&&gt(r)}let i=await $(()=>ee(e,n).get()),u=ke(i.docs.map(f=>({id:f.id,...f.data()}))),d=vo(u),h=d.length+u.length+1,b=0,N=()=>o(++b,h);for(let f=0;f<d.length;f++)await $(()=>K(e,n).doc(dn(f)).set({i:f,records:d[f]})),N();let y=await $(()=>K(e,n).get()),D=new Set(d.map((f,v)=>dn(v)));for(let f of y.docs)D.has(f.id)||await $(()=>K(e,n).doc(f.id).delete());await $(()=>r.update({archived:!0,status:"closed",count:u.length,...Fe(u),updatedAt:Date.now()})),N(),await Ce(u,4,f=>$(()=>ee(e,n).doc(f.id).delete()),N)}async function wn(e,n,o){let r=await $(()=>K(e,n).get()),l=ke(r.docs.flatMap(h=>{var b;return((b=h.data())==null?void 0:b.records)||[]})),i=l.length+r.docs.length+1,u=0,d=()=>o(++u,i);await Ce(l,4,h=>{let{id:b,...N}=h;return $(()=>ee(e,n).doc(b).set(Ee(N)))},d),await $(()=>te(e,n).update({status:"open",archived:!1,count:l.length,...Fe(l),updatedAt:Date.now()})),d();for(let h of r.docs)await $(()=>K(e,n).doc(h.id).delete()),d()}async function vn(e,n,o,r){var N,y;let[l,i]=await Promise.all([$(()=>ee(e,o).get()),$(()=>K(e,o).get())]),u=new Set;for(let D of l.docs){let f=(N=D.data())==null?void 0:N.photo;f&&u.add(f)}for(let D of i.docs)for(let f of((y=D.data())==null?void 0:y.records)||[])f.photo&&u.add(f.photo);let d=l.docs.length+i.docs.length+u.size+1,h=0,b=()=>r(++h,d);await Ce(l.docs,4,D=>$(()=>ee(e,o).doc(D.id).delete()),b),await Ce(i.docs,2,D=>$(()=>K(e,o).doc(D.id).delete()),b),n&&await Ce([...u],3,D=>n.delete(D).catch(()=>null),b),await $(()=>te(e,o).delete()),b()}var xo=(()=>{let e=new Uint32Array(256);for(let n=0;n<256;n++){let o=n;for(let r=0;r<8;r++)o=o&1?3988292384^o>>>1:o>>>1;e[n]=o>>>0}return e})();function No(e){let n=4294967295;for(let o=0;o<e.length;o++)n=xo[(n^e[o])&255]^n>>>8;return(n^4294967295)>>>0}function Ue(e,n=new Date){let o=new TextEncoder,r=(n.getHours()<<11|n.getMinutes()<<5|n.getSeconds()>>1)&65535,l=(n.getFullYear()-1980<<9|n.getMonth()+1<<5|n.getDate())&65535,i=[],u=[],d=0;for(let f of e){let v=o.encode(f.name),C=typeof f.data=="string"?o.encode(f.data):f.data,z=No(C),w=new DataView(new ArrayBuffer(30));w.setUint32(0,67324752,!0),w.setUint16(4,20,!0),w.setUint16(6,2048,!0),w.setUint16(8,0,!0),w.setUint16(10,r,!0),w.setUint16(12,l,!0),w.setUint32(14,z,!0),w.setUint32(18,C.length,!0),w.setUint32(22,C.length,!0),w.setUint16(26,v.length,!0),w.setUint16(28,0,!0),i.push(new Uint8Array(w.buffer),v,C);let c=new DataView(new ArrayBuffer(46));c.setUint32(0,33639248,!0),c.setUint16(4,20,!0),c.setUint16(6,20,!0),c.setUint16(8,2048,!0),c.setUint16(10,0,!0),c.setUint16(12,r,!0),c.setUint16(14,l,!0),c.setUint32(16,z,!0),c.setUint32(20,C.length,!0),c.setUint32(24,C.length,!0),c.setUint16(28,v.length,!0),c.setUint16(30,0,!0),c.setUint16(32,0,!0),c.setUint16(34,0,!0),c.setUint16(36,0,!0),c.setUint32(38,0,!0),c.setUint32(42,d,!0),u.push(new Uint8Array(c.buffer),v),d+=30+v.length+C.length}let h=u.reduce((f,v)=>f+v.length,0),b=new DataView(new ArrayBuffer(22));b.setUint32(0,101010256,!0),b.setUint16(4,0,!0),b.setUint16(6,0,!0),b.setUint16(8,e.length,!0),b.setUint16(10,e.length,!0),b.setUint32(12,h,!0),b.setUint32(16,d,!0),b.setUint16(20,0,!0);let N=[...i,...u,new Uint8Array(b.buffer)],y=new Uint8Array(N.reduce((f,v)=>f+v.length,0)),D=0;for(let f of N)y.set(f,D),D+=f.length;return y}function he(e){return String(e??"").replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F￾￿]/g,"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}function W(e){return[...e.notes||[],(e.freeNotes||"").trim()].filter(Boolean).join("; ")}function fe(e){return[...e].sort((n,o)=>n.no-o.no||n.createdAt-o.createdAt)}function Me(e){let n=[{key:"no",title:"Unit No.",kind:"int",width:9},{key:"type",title:"Appliance Type",kind:"text",width:34},{key:"brand",title:"Brand",kind:"text",width:14},{key:"model",title:"Model",kind:"mono",width:22},{key:"serial",title:"Serial",kind:"mono",width:22},{key:"color",title:"Color",kind:"text",width:16},{key:"notes",title:"Notes",kind:"wrap",width:42},{key:"source",title:"Source",kind:"text",width:14},{key:"logged",title:"Logged",kind:"datetime",width:21}];return Co(e)&&n.push({key:"by",title:"Logged By",kind:"text",width:18}),n}function Co(e){return e.names?e.records.some(n=>n.by&&e.names[n.by]):!1}function Le(e,n,o){var r;switch(n){case"no":return e.no;case"type":return e.type||"";case"brand":return e.brand||"";case"model":return e.model||"";case"serial":return e.serial||"";case"color":return e.color||"";case"notes":return W(e);case"source":return Ae[e.source]||"";case"logged":return e.createdAt;case"by":return e.by&&((r=o.names)==null?void 0:r[e.by])||"";default:return""}}function Oe(e){if(!e.length)return"\u2014";let n=e.map(l=>l.no),o=Math.min(...n),r=Math.max(...n);return o===r?`#${o}`:`#${o}\u2013#${r}`}function ko(e){return(e||"inventory").toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_|_$/g,"")||"inventory"}function _e(e,n){let o=ko(e);if(!n.length)return`${o}_empty`;let r=n.map(l=>l.no);return`${o}_units_${Math.min(...r)}-${Math.max(...r)}`}function ge(e,n){let o=new Map;for(let r of e){let l=n(r)||"(not set)";o.set(l,(o.get(l)||0)+1)}return[...o.entries()].sort((r,l)=>l[1]-r[1]||r[0].localeCompare(l[0]))}function ze(e){return new Date(e).toLocaleString("en-US",{month:"short",day:"numeric",year:"numeric",hour:"numeric",minute:"2-digit"})}function bt(e){let n=new Date(e);return(e-n.getTimezoneOffset()*6e4)/864e5+25569}var He="http://schemas.openxmlformats.org/spreadsheetml/2006/main",wt="http://schemas.openxmlformats.org/officeDocument/2006/relationships",Y=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+`,U={header:1,text:2,int:3,datetime:4,wrap:5,title:6,label:7,plainInt:8,plainDate:9,plainText:10,muted:11},So=`${Y}<styleSheet xmlns="${He}">
+<numFmts count="1"><numFmt numFmtId="164" formatCode="mmm d, yyyy h:mm AM/PM"/></numFmts>
+<fonts count="5">
+<font><sz val="11"/><name val="Calibri"/><family val="2"/></font>
+<font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/><family val="2"/></font>
+<font><b/><sz val="15"/><name val="Calibri"/><family val="2"/></font>
+<font><b/><sz val="11"/><name val="Calibri"/><family val="2"/></font>
+<font><sz val="10"/><color rgb="FF57544D"/><name val="Calibri"/><family val="2"/></font>
+</fonts>
+<fills count="3">
+<fill><patternFill patternType="none"/></fill>
+<fill><patternFill patternType="gray125"/></fill>
+<fill><patternFill patternType="solid"><fgColor rgb="FF0F0F0E"/><bgColor indexed="64"/></patternFill></fill>
+</fills>
+<borders count="2">
+<border><left/><right/><top/><bottom/><diagonal/></border>
+<border><left/><right/><top/><bottom style="thin"><color rgb="FFDAD6CC"/></bottom><diagonal/></border>
+</borders>
+<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
+<cellXfs count="12">
+<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
+<xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment vertical="center"/></xf>
+<xf numFmtId="49" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1" applyAlignment="1"><alignment vertical="top"/></xf>
+<xf numFmtId="1" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1" applyAlignment="1"><alignment horizontal="left" vertical="top"/></xf>
+<xf numFmtId="164" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1" applyAlignment="1"><alignment horizontal="left" vertical="top"/></xf>
+<xf numFmtId="49" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>
+<xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1"/>
+<xf numFmtId="0" fontId="3" fillId="0" borderId="0" xfId="0" applyFont="1"/>
+<xf numFmtId="1" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyAlignment="1"><alignment horizontal="left"/></xf>
+<xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyAlignment="1"><alignment horizontal="left"/></xf>
+<xf numFmtId="49" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>
+<xf numFmtId="0" fontId="4" fillId="0" borderId="0" xfId="0" applyFont="1"/>
+</cellXfs>
+<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
+<dxfs count="0"/>
+<tableStyles count="0" defaultTableStyle="TableStyleMedium2" defaultPivotStyle="PivotStyleLight16"/>
+</styleSheet>`;function vt(e){let n="",o=e+1;for(;o>0;){let r=(o-1)%26;n=String.fromCharCode(65+r)+n,o=Math.floor((o-1)/26)}return n}function Se(e,n,o){return n===""?`<c r="${e}" s="${o}"/>`:`<c r="${e}" t="inlineStr" s="${o}"><is><t xml:space="preserve">${he(n)}</t></is></c>`}function We(e,n,o){return`<c r="${e}" s="${o}"><v>${Number.isFinite(n)?n:0}</v></c>`}function Do(e){return e.replace(/[\[\]:*?/\\]/g," ").slice(0,31)}function yn(e){let n=Me(e),o=fe(e.records),r=vt(n.length-1),l=Math.max(o.length+1,1),i=[];i.push(`<row r="1" ht="20" customHeight="1">${n.map((w,c)=>Se(`${vt(c)}1`,w.title,U.header)).join("")}</row>`),o.forEach((w,c)=>{let E=c+2,L=n.map((H,j)=>{let q=`${vt(j)}${E}`,ce=Le(w,H.key,e);return H.kind==="int"?We(q,Number(ce),U.int):H.kind==="datetime"?We(q,bt(Number(ce)),U.datetime):H.kind==="wrap"?Se(q,String(ce),U.wrap):Se(q,String(ce),U.text)}).join("");i.push(`<row r="${E}">${L}</row>`)});let u=`${Y}<worksheet xmlns="${He}" xmlns:r="${wt}">
+<sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>
+<dimension ref="A1:${r}${l}"/>
+<sheetViews><sheetView tabSelected="1" workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/><selection pane="bottomLeft" activeCell="A2" sqref="A2"/></sheetView></sheetViews>
+<sheetFormatPr defaultRowHeight="15"/>
+<cols>${n.map((w,c)=>`<col min="${c+1}" max="${c+1}" width="${w.width}" customWidth="1"/>`).join("")}</cols>
+<sheetData>${i.join("")}</sheetData>
+<autoFilter ref="A1:${r}${l}"/>
+<pageMargins left="0.4" right="0.4" top="0.5" bottom="0.5" header="0.3" footer="0.3"/>
+<pageSetup orientation="landscape" fitToWidth="1" fitToHeight="0"/>
+</worksheet>`,d=[],h=1,b=(w,c,E,L,H)=>{let j=Se(`A${h}`,w,E);c!=null&&(H==="date"?j+=We(`B${h}`,bt(Number(c)),U.plainDate):typeof c=="number"?j+=We(`B${h}`,c,L??U.plainInt):j+=Se(`B${h}`,c,L??U.plainText)),d.push(`<row r="${h}">${j}</row>`),h++},N=()=>{h++};b(e.batch.name||"Inventory",null,U.title),b(`Appliance inventory \xB7 ${e.batch.status==="closed"?"closed batch":"open batch"}`,null,U.muted),N(),b("Units",o.length,U.label),b("Unit range",Oe(o),U.label),b("No nameplate",o.filter(w=>w.source==="noplate").length,U.label),b("With notes",o.filter(w=>W(w)).length,U.label),b("Exported",e.exportedAt.getTime(),U.label,void 0,"date");let y=(w,c)=>{N(),b(w,"Units",U.label,U.label);for(let[E,L]of c)b(E,L,U.plainText)};y("By appliance type",ge(o,w=>w.type)),y("By brand",ge(o,w=>w.brand)),y("By color",ge(o,w=>w.color));let D=`${Y}<worksheet xmlns="${He}" xmlns:r="${wt}">
+<dimension ref="A1:B${Math.max(h-1,1)}"/>
+<sheetViews><sheetView workbookViewId="0"/></sheetViews>
+<sheetFormatPr defaultRowHeight="15"/>
+<cols><col min="1" max="1" width="40" customWidth="1"/><col min="2" max="2" width="22" customWidth="1"/></cols>
+<sheetData>${d.join("")}</sheetData>
+<pageMargins left="0.5" right="0.5" top="0.6" bottom="0.6" header="0.3" footer="0.3"/>
+</worksheet>`,f=Do("Inventory"),v=`${Y}<workbook xmlns="${He}" xmlns:r="${wt}">
+<bookViews><workbookView xWindow="0" yWindow="0" windowWidth="28800" windowHeight="16000" activeTab="0"/></bookViews>
+<sheets><sheet name="${f}" sheetId="1" r:id="rId1"/><sheet name="Summary" sheetId="2" r:id="rId2"/></sheets>
+<definedNames><definedName name="_xlnm._FilterDatabase" localSheetId="0" hidden="1">'${f}'!$A$1:$${r}$${l}</definedName><definedName name="_xlnm.Print_Titles" localSheetId="0">'${f}'!$1:$1</definedName></definedNames>
+</workbook>`,C=e.exportedAt.toISOString().replace(/\.\d{3}Z$/,"Z"),z=he(e.batch.name||"Inventory");return Ue([{name:"[Content_Types].xml",data:`${Y}<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+<Default Extension="xml" ContentType="application/xml"/>
+<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+<Override PartName="/xl/worksheets/sheet2.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
+<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
+<Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>
+</Types>`},{name:"_rels/.rels",data:`${Y}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>
+<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/>
+</Relationships>`},{name:"docProps/core.xml",data:`${Y}<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<dc:title>${z}</dc:title><dc:creator>Inventory Logger</dc:creator>
+<dcterms:created xsi:type="dcterms:W3CDTF">${C}</dcterms:created><dcterms:modified xsi:type="dcterms:W3CDTF">${C}</dcterms:modified>
+</cp:coreProperties>`},{name:"docProps/app.xml",data:`${Y}<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes"><Application>Inventory Logger</Application></Properties>`},{name:"xl/workbook.xml",data:v},{name:"xl/_rels/workbook.xml.rels",data:`${Y}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/>
+<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+</Relationships>`},{name:"xl/styles.xml",data:So},{name:"xl/worksheets/sheet1.xml",data:u},{name:"xl/worksheets/sheet2.xml",data:D}],e.exportedAt)}var yt="http://schemas.openxmlformats.org/wordprocessingml/2006/main",xn="http://schemas.openxmlformats.org/officeDocument/2006/relationships",ne=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+`,xt="0F0F0E",oe="57544D",To="DAD6CC",Bo="E8472C",Po="F4F2ED";function re(e,n={}){let o=(n.mono?'<w:rFonts w:ascii="Consolas" w:hAnsi="Consolas" w:cs="Consolas"/>':"")+(n.b?"<w:b/><w:bCs/>":"")+(n.caps?"<w:caps/>":"")+(n.color?`<w:color w:val="${n.color}"/>`:"")+(n.spacing?`<w:spacing w:val="${n.spacing}"/>`:"")+(n.sz?`<w:sz w:val="${n.sz}"/><w:szCs w:val="${n.sz}"/>`:"");return`<w:r>${o?`<w:rPr>${o}</w:rPr>`:""}<w:t xml:space="preserve">${he(e)}</w:t></w:r>`}function le(e,n=0,o){return`<w:p><w:pPr><w:spacing w:before="0" w:after="${n}"/>${o?`<w:jc w:val="${o}"/>`:""}</w:pPr>${e}</w:p>`}function Nn(e,n,o){return`<w:tc><w:tcPr><w:tcW w:w="${e}" w:type="dxa"/>${o?`<w:shd w:val="clear" w:color="auto" w:fill="${o}"/>`:""}</w:tcPr>${le(n)}</w:tc>`}function Cn(e){let n=fe(e.records),o=e.batch.name||"Inventory",r=[{title:"No.",w:760,get:c=>`#${c.no}`,mono:!0,b:!0},{title:"Appliance type",w:2640,get:c=>c.type||"\u2014"},{title:"Brand",w:1500,get:c=>c.brand||"\u2014"},{title:"Model",w:2160,get:c=>c.model||"\u2014",mono:!0},{title:"Serial",w:2300,get:c=>c.serial||"\u2014",mono:!0},{title:"Color",w:1340,get:c=>c.color||"\u2014"},{title:"Notes",w:3700,get:c=>W(c)}],l="<w:tr><w:trPr><w:cantSplit/><w:tblHeader/></w:trPr>"+r.map(c=>Nn(c.w,re(c.title,{b:!0,caps:!0,color:"FFFFFF",sz:15,spacing:10}),xt)).join("")+"</w:tr>",i=n.map((c,E)=>"<w:tr><w:trPr><w:cantSplit/></w:trPr>"+r.map(L=>Nn(L.w,re(L.get(c),{mono:L.mono,b:L.b,sz:17,color:xt}),E%2?Po:void 0)).join("")+"</w:tr>").join(""),u=c=>`<w:${c} w:val="single" w:sz="4" w:space="0" w:color="${To}"/>`,d=`<w:tbl><w:tblPr><w:tblW w:w="14400" w:type="dxa"/><w:tblBorders>${["top","left","bottom","right","insideH","insideV"].map(u).join("")}</w:tblBorders><w:tblLayout w:type="fixed"/><w:tblCellMar><w:top w:w="50" w:type="dxa"/><w:left w:w="90" w:type="dxa"/><w:bottom w:w="50" w:type="dxa"/><w:right w:w="90" w:type="dxa"/></w:tblCellMar><w:tblLook w:val="04A0" w:firstRow="1" w:lastRow="0" w:firstColumn="0" w:lastColumn="0" w:noHBand="0" w:noVBand="1"/></w:tblPr><w:tblGrid>${r.map(c=>`<w:gridCol w:w="${c.w}"/>`).join("")}</w:tblGrid>`+l+i+"</w:tbl>",h=n.filter(c=>c.source==="noplate").length,b=n.filter(c=>W(c)).length,N=[`Units ${Oe(n)}`,`${n.length} record${n.length===1?"":"s"}`,h?`${h} without nameplate`:"",b?`${b} with notes`:"",`Exported ${ze(e.exportedAt.getTime())}`].filter(Boolean).join("  \xB7  "),y=ge(n,c=>c.type).map(([c,E])=>`${c} ${E}`).join("  \xB7  "),D=`${ne}<w:document xmlns:w="${yt}" xmlns:r="${xn}"><w:body>
+${le(re("Appliance inventory",{b:!0,caps:!0,color:Bo,sz:16,spacing:30}),40)}
+${le(re(o,{b:!0,sz:36,color:xt}),60)}
+${le(re(N,{color:oe,sz:18}),y?60:220)}
+${y?le(re(y,{color:oe,sz:16}),220):""}
+${d}
+${le("",0)}
+<w:sectPr><w:footerReference w:type="default" r:id="rId2"/><w:pgSz w:w="15840" w:h="12240" w:orient="landscape"/><w:pgMar w:top="720" w:right="720" w:bottom="720" w:left="720" w:header="360" w:footer="360" w:gutter="0"/></w:sectPr>
+</w:body></w:document>`,f=c=>re(c,{color:oe,sz:15}),v=c=>`<w:r><w:rPr><w:color w:val="${oe}"/><w:sz w:val="15"/></w:rPr><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:rPr><w:color w:val="${oe}"/><w:sz w:val="15"/></w:rPr><w:instrText xml:space="preserve"> ${c} </w:instrText></w:r><w:r><w:rPr><w:color w:val="${oe}"/><w:sz w:val="15"/></w:rPr><w:fldChar w:fldCharType="separate"/></w:r><w:r><w:rPr><w:color w:val="${oe}"/><w:sz w:val="15"/></w:rPr><w:t>1</w:t></w:r><w:r><w:rPr><w:color w:val="${oe}"/><w:sz w:val="15"/></w:rPr><w:fldChar w:fldCharType="end"/></w:r>`,C=`${ne}<w:ftr xmlns:w="${yt}" xmlns:r="${xn}">${le(f(`${o}  \xB7  Page `)+v("PAGE")+f(" of ")+v("NUMPAGES"),0,"right")}</w:ftr>`,z=`${ne}<w:styles xmlns:w="${yt}">
+<w:docDefaults>
+<w:rPrDefault><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:eastAsia="Arial" w:cs="Arial"/><w:sz w:val="18"/><w:szCs w:val="18"/><w:lang w:val="en-US"/></w:rPr></w:rPrDefault>
+<w:pPrDefault><w:pPr><w:spacing w:after="0" w:line="240" w:lineRule="auto"/></w:pPr></w:pPrDefault>
+</w:docDefaults>
+<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/></w:style>
+<w:style w:type="character" w:default="1" w:styleId="DefaultParagraphFont"><w:name w:val="Default Paragraph Font"/><w:uiPriority w:val="1"/><w:semiHidden/><w:unhideWhenUsed/></w:style>
+<w:style w:type="table" w:default="1" w:styleId="TableNormal"><w:name w:val="Normal Table"/><w:uiPriority w:val="99"/><w:semiHidden/><w:unhideWhenUsed/><w:tblPr><w:tblInd w:w="0" w:type="dxa"/><w:tblCellMar><w:top w:w="0" w:type="dxa"/><w:left w:w="108" w:type="dxa"/><w:bottom w:w="0" w:type="dxa"/><w:right w:w="108" w:type="dxa"/></w:tblCellMar></w:tblPr></w:style>
+</w:styles>`,w=e.exportedAt.toISOString().replace(/\.\d{3}Z$/,"Z");return Ue([{name:"[Content_Types].xml",data:`${ne}<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+<Default Extension="xml" ContentType="application/xml"/>
+<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+<Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
+<Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/>
+<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
+<Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>
+</Types>`},{name:"_rels/.rels",data:`${ne}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>
+<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/>
+</Relationships>`},{name:"docProps/core.xml",data:`${ne}<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<dc:title>${he(o)}</dc:title><dc:creator>Inventory Logger</dc:creator>
+<dcterms:created xsi:type="dcterms:W3CDTF">${w}</dcterms:created><dcterms:modified xsi:type="dcterms:W3CDTF">${w}</dcterms:modified>
+</cp:coreProperties>`},{name:"docProps/app.xml",data:`${ne}<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes"><Application>Inventory Logger</Application></Properties>`},{name:"word/document.xml",data:D},{name:"word/styles.xml",data:z},{name:"word/footer1.xml",data:C},{name:"word/_rels/document.xml.rels",data:`${ne}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer1.xml"/>
+</Relationships>`}],e.exportedAt)}function Nt(e){return'"'+e.replace(/"/g,'""')+'"'}function kn(e){let n=Me(e),o=[n.map(r=>Nt(r.title)).join(",")];for(let r of fe(e.records))o.push(n.map(l=>{let i=Le(r,l.key,e);return l.kind==="datetime"?Nt(ze(Number(i))):l.kind==="int"?String(i):Nt(String(i))}).join(","));return"\uFEFF"+o.join(`\r
+`)+`\r
+`}var t=it(dt(),1);var $o=Object.fromEntries($e.map(e=>[e.name,{swatch:e.swatch,bd:e.bd}]));function Sn({color:e,size:n=10}){let o=$o[e];return o?t.default.createElement("span",{className:"sw",style:{width:n,height:n,background:o.swatch,borderColor:o.bd},"aria-hidden":"true"}):null}function Ct({size:e="lg"}){return t.default.createElement(t.default.Fragment,null,t.default.createElement("span",{className:`bk tl ${e}`}),t.default.createElement("span",{className:`bk tr ${e}`}),t.default.createElement("span",{className:`bk bl ${e}`}),t.default.createElement("span",{className:`bk br ${e}`}))}function Dn(){return t.default.createElement("div",{className:"brandline"},t.default.createElement("span",{className:"brand-sq","aria-hidden":"true"}),t.default.createElement("span",null,"Field Capture"))}function Tn(e){let[n,o]=(0,t.useState)(""),[r,l]=(0,t.useState)(String(e.suggestedStart)),i=(0,t.useRef)(!1);(0,t.useEffect)(()=>{i.current||l(String(e.suggestedStart))},[e.suggestedStart]);let u=pe(r,0),h=e.status==="ready"&&!!n.trim()&&u!=null&&!e.busy,b=e.status==="loading"?"Connecting to storage\u2026":e.status==="nostorage"?"Storage isn\u2019t available in this view. Open this page in Claude to save batches.":e.status==="readonly"?"You have view-only access. Ask the owner for Contributor access to start batches.":"",N=()=>{h&&e.onBegin(n,u)};return t.default.createElement("div",{className:"screen"},t.default.createElement("div",{className:"setup-top"},e.hasBatches&&t.default.createElement("button",{className:"back",onClick:e.onBack},"\u2039 All batches"),t.default.createElement(Dn,null),t.default.createElement("h1",{className:"title"},"Inventory",t.default.createElement("br",null),"Logger"),t.default.createElement("p",{className:"lede"},"Photograph appliance nameplates. Extract brand, model, serial. Export to spreadsheet.")),t.default.createElement("div",{className:"scroll"},t.default.createElement("div",{className:"setup-body"},t.default.createElement("label",{className:"label",htmlFor:"batch-name"},"\u258C Batch name"),t.default.createElement("input",{id:"batch-name",className:"input big",type:"text",value:n,maxLength:80,autoComplete:"off",placeholder:"e.g. Riverbend Apartments",onChange:y=>o(y.target.value),onKeyDown:y=>{var D;y.key==="Enter"&&((D=document.getElementById("start-no"))==null||D.focus())}}),t.default.createElement("label",{className:"label gap",htmlFor:"start-no"},"\u258C Starting unit number"),t.default.createElement("div",{className:"start-row"},t.default.createElement("input",{id:"start-no",className:"input num",type:"text",inputMode:"numeric",pattern:"[0-9]*",value:r,onChange:y=>{i.current=!0,l(y.target.value.replace(/[^0-9]/g,""))},onKeyDown:y=>{y.key==="Enter"&&N()}}),t.default.createElement("div",{className:"aside"},e.continuesFrom&&!i.current?`Continues the count from ${e.continuesFrom}. Change it anytime from the batch menu.`:"Sequence counts up automatically. Change it anytime from the batch menu.")),t.default.createElement("div",{className:"howto"},t.default.createElement("div",{className:"eyebrow"},"How it works"),t.default.createElement("ol",null,[["1","Photograph the nameplate"],["2","Confirm brand, model, serial"],["3","Pick color, appliance type, notes"],["\u2192","Save. Counter advances. Every device sees it. Export anytime."]].map(([y,D])=>t.default.createElement("li",{key:y},t.default.createElement("span",{className:"step"+(y==="\u2192"?" go":"")},y),t.default.createElement("span",null,D))))))),t.default.createElement("div",{className:"foot"},b&&t.default.createElement("div",{className:"status"+(e.status==="loading"?"":" warn"),role:"status"},b),t.default.createElement("button",{className:"btn-primary tall",disabled:!h,onClick:N},t.default.createElement("span",null,e.busy?"Creating\u2026":"Begin inventory"),t.default.createElement("span",{className:"mono arrow"},"\u2192"))))}function kt(e){let n=e.batches.filter(i=>i.status==="open"),o=e.batches.filter(i=>i.status!=="open"),r=i=>{let u=i.count&&i.firstUnit!=null&&i.lastUnit!=null?i.firstUnit===i.lastUnit?`#${i.firstUnit}`:`#${i.firstUnit}\u2013#${i.lastUnit}`:null;return t.default.createElement("button",{key:i.id,className:"batch-row",onClick:()=>e.onOpen(i.id)},t.default.createElement("div",{className:"br-main"},t.default.createElement("div",{className:"br-name"},i.name||"Untitled batch"),t.default.createElement("div",{className:"br-meta mono"},u?`${u} \xB7 ${i.count} unit${i.count===1?"":"s"}`:`No units yet \xB7 next #${i.nextNumber}`)),t.default.createElement("div",{className:"br-side"},t.default.createElement("span",{className:"chip"+(i.status==="open"?" open":" closed")},i.status==="open"?"Open":"Closed"),t.default.createElement("span",{className:"br-date"},xe(i.updatedAt))))},l=e.photoUsage;return t.default.createElement("div",{className:"screen"},t.default.createElement("div",{className:"batches-top"},t.default.createElement(Dn,null),t.default.createElement("h1",{className:"title sm"},"Inventory Logger")),t.default.createElement("div",{className:"section-head"},t.default.createElement("span",{className:"label"},"\u258C Batches"),e.writable&&t.default.createElement("button",{className:"btn-mini strong",onClick:e.onNew},"+ New batch")),t.default.createElement("div",{className:"scroll"},t.default.createElement("div",{className:"batch-list"},!e.batches.length&&t.default.createElement("div",{className:"empty-note"},"No batches yet."),n.length>0&&t.default.createElement("div",{className:"group-label"},"Open \xB7 ",n.length),n.map(r),o.length>0&&t.default.createElement("div",{className:"group-label"},"Closed \xB7 ",o.length),o.map(r))),t.default.createElement("div",{className:"batches-foot"},l&&l.maxBytes>0&&t.default.createElement("span",null,"Photos ",t.default.createElement("b",{className:"mono"},ht(l.bytes))," of ",ht(l.maxBytes)),t.default.createElement("span",{className:e.capacity.pct>.8?"warn":""},"Unit storage ",t.default.createElement("b",{className:"mono"},Math.round(e.capacity.pct*100),"%"),e.capacity.pct>.6?" \xB7 close finished batches to free space":" used")))}function Ao(e){let n=e.r,o=n.photo&&/^[A-Za-z0-9_-]{8,64}$/.test(n.photo)?"/_blob/"+n.photo:null,r=W(n);return t.default.createElement("div",{className:"detail-body"},t.default.createElement("div",{className:"detail-cols"},t.default.createElement("dl",{className:"detail-rows"},t.default.createElement("div",null,t.default.createElement("dt",null,"Serial"),t.default.createElement("dd",{className:"mono"},n.serial||"\u2014")),t.default.createElement("div",null,t.default.createElement("dt",null,"Model"),t.default.createElement("dd",{className:"mono"},n.model||"\u2014")),t.default.createElement("div",null,t.default.createElement("dt",null,"Type"),t.default.createElement("dd",null,n.type||"\u2014")),r&&t.default.createElement("div",null,t.default.createElement("dt",null,"Notes"),t.default.createElement("dd",null,r))),o&&t.default.createElement("button",{className:"thumb",onClick:()=>e.onPhoto(o,`Unit #${n.no} \xB7 ${n.brand||""} ${n.model||""}`.trim()),"aria-label":`Open photo of unit #${n.no}`},t.default.createElement("img",{src:o,alt:"",loading:"lazy"}))),t.default.createElement("div",{className:"detail-meta mono"},Ae[n.source]," \xB7 logged ",ye(n.createdAt)," \xB7 ",xe(n.createdAt),e.name?` \xB7 ${e.name}`:"",n.renumberedFrom!=null?` \xB7 shown as #${n.renumberedFrom} when captured`:""),e.writable&&t.default.createElement("div",{className:"detail-actions"},t.default.createElement("button",{className:"btn-mini",onClick:e.onEdit},"Edit"),t.default.createElement("button",{className:"btn-mini danger",onClick:e.onDelete},"Delete")))}function Bn(e){let n=e.batch,o=n.status!=="open",r=e.writable&&!o,l=d=>t.default.createElement(Ao,{r:d,name:d.by&&e.names[d.by]||"",writable:r,onEdit:()=>e.onEdit(d),onDelete:()=>e.onDelete(d),onPhoto:e.onPhoto}),i=d=>t.default.createElement(t.default.Fragment,null,e.dupNos.has(d.no)&&t.default.createElement("span",{className:"flag"},"Dup"),d.source==="noplate"&&t.default.createElement("span",{className:"flag soft"},"No plate")),u;return e.loaded?e.records.length?e.wide?u=t.default.createElement("table",{className:"rtable"},t.default.createElement("thead",null,t.default.createElement("tr",null,t.default.createElement("th",null,"No."),t.default.createElement("th",null,"Appliance type"),t.default.createElement("th",null,"Brand"),t.default.createElement("th",null,"Model"),t.default.createElement("th",null,"Serial"),t.default.createElement("th",null,"Color"),t.default.createElement("th",null,"Notes"),t.default.createElement("th",null,"Logged"))),t.default.createElement("tbody",null,e.records.map(d=>{let h=e.expanded===d.id;return t.default.createElement(t.default.Fragment,{key:d.id},t.default.createElement("tr",{id:"rec-"+d.id,className:"trow"+(h?" open":""),tabIndex:0,"aria-expanded":h,onClick:()=>e.onToggle(d.id),onKeyDown:b=>{(b.key==="Enter"||b.key===" ")&&(b.preventDefault(),e.onToggle(d.id))}},t.default.createElement("td",{className:"mono strong nowrap"},"#",d.no," ",i(d)),t.default.createElement("td",null,d.type||"\u2014"),t.default.createElement("td",null,d.brand||"\u2014"),t.default.createElement("td",{className:"mono"},d.model||"\u2014"),t.default.createElement("td",{className:"mono"},d.serial||"\u2014"),t.default.createElement("td",{className:"nowrap"},t.default.createElement(Sn,{color:d.color})," ",d.color||"\u2014"),t.default.createElement("td",{className:"notes-cell"},W(d)),t.default.createElement("td",{className:"mono muted nowrap"},xe(d.createdAt)," ",ye(d.createdAt))),h&&t.default.createElement("tr",{className:"tdetail"},t.default.createElement("td",{colSpan:8},l(d))))}))):u=t.default.createElement("div",null,t.default.createElement("div",{className:"col-head grid3"},t.default.createElement("div",null,"No."),t.default.createElement("div",null,"Appliance \xB7 Model"),t.default.createElement("div",{className:"r"},"Color")),e.records.map(d=>{let h=e.expanded===d.id;return t.default.createElement("div",{key:d.id,id:"rec-"+d.id,className:"rec"+(h?" open":"")},t.default.createElement("button",{className:"rec-row grid3","aria-expanded":h,onClick:()=>e.onToggle(d.id)},t.default.createElement("div",{className:"rec-no mono"},"#",d.no,t.default.createElement("div",{className:"rec-flags"},i(d))),t.default.createElement("div",{className:"rec-main"},t.default.createElement("div",{className:"rec-title"},[d.brand,d.type].filter(Boolean).join(" \xB7 ")||"\u2014"),t.default.createElement("div",{className:"rec-model mono"},d.model||"\u2014")),t.default.createElement("div",{className:"rec-color"},t.default.createElement("div",{className:"cc"},t.default.createElement(Sn,{color:d.color}),t.default.createElement("span",null,d.color||"\u2014")),t.default.createElement("div",{className:"caret mono"},h?"\u25B2":"\u25BC"))),h&&l(d))})):u=t.default.createElement("div",{className:"empty"},t.default.createElement("div",{className:"empty-plate"},t.default.createElement(Ct,{size:"sm"}),t.default.createElement("span",{className:"mono"},"NAME",t.default.createElement("br",null),"PLATE")),t.default.createElement("div",{className:"empty-title"},o?"This batch has no units":"Ready to log the first unit"),!o&&t.default.createElement("div",{className:"empty-sub"},"Counter starts at ",t.default.createElement("span",{className:"mono"},"#",n.nextNumber),". Tap capture below to photograph a nameplate.")):u=t.default.createElement("div",{className:"loading-note"},"Loading units\u2026"),t.default.createElement("div",{className:"screen"},t.default.createElement("header",{className:"list-head"},t.default.createElement("div",{className:"lh-row"},t.default.createElement("button",{className:"back eyebrow",onClick:e.onBack},"\u2039 All batches"),t.default.createElement("button",{className:"kebab",onClick:e.onMenu,"aria-label":"Batch menu"},t.default.createElement("span",null),t.default.createElement("span",null),t.default.createElement("span",null))),t.default.createElement("div",{className:"lh-name"},n.name),t.default.createElement("div",{className:"lh-stats"},t.default.createElement("span",{className:"stat"},t.default.createElement("b",{className:"mono"},e.records.length)," records"),!o&&t.default.createElement(t.default.Fragment,null,t.default.createElement("span",{className:"vr"}),t.default.createElement("span",{className:"stat"},"next ",t.default.createElement("b",{className:"mono"},"#",n.nextNumber))),o&&t.default.createElement("span",{className:"chip closed"},"Closed"),!e.writable&&t.default.createElement("span",{className:"chip"},"View only"))),e.pendingDraft&&r&&t.default.createElement("div",{className:"banner",role:"status"},t.default.createElement("span",null,"Unsaved unit from ",ye(e.pendingDraft.savedAt),e.pendingDraft.draft.model?` \xB7 ${e.pendingDraft.draft.model}`:""),t.default.createElement("span",{className:"banner-btns"},t.default.createElement("button",{className:"btn-mini strong",onClick:e.onResume},"Resume"),t.default.createElement("button",{className:"btn-mini",onClick:e.onDiscard},"Discard"))),t.default.createElement("div",{className:"scroll list-body"},u),t.default.createElement("footer",{className:"actionbar"+(e.wide?" wide":"")},r?t.default.createElement(t.default.Fragment,null,t.default.createElement("button",{className:"btn-capture",onClick:e.onCapture},t.default.createElement("span",{className:"lens","aria-hidden":"true"},t.default.createElement("span",null)),t.default.createElement("span",null,"Capture #",n.nextNumber)),t.default.createElement("div",{className:"pair"},t.default.createElement("button",{className:"btn-outline",onClick:e.onNoPlate},"No Nameplate"),t.default.createElement("button",{className:"btn-outline",onClick:e.onManual},"Manual Entry"))):t.default.createElement("div",{className:"pair"},t.default.createElement("button",{className:"btn-outline",onClick:e.onExport,disabled:!e.records.length},"Export"),o&&e.writable?t.default.createElement("button",{className:"btn-outline",onClick:e.onReopen},"Reopen batch"):t.default.createElement("button",{className:"btn-outline",onClick:e.onBack},"All batches"))))}function Pn(e){return t.default.createElement("div",{className:"screen dark"},t.default.createElement("div",{className:"dark-top"},t.default.createElement("button",{className:"btn-text light",onClick:e.onCancel},"\u2715 Cancel"),t.default.createElement("div",{className:"unit-live"},t.default.createElement("span",{className:"rec-dot","aria-hidden":"true"}),t.default.createElement("span",{className:"mono"},"UNIT #",e.unitNo))),t.default.createElement("div",{className:"viewfinder"},t.default.createElement("div",{className:"vf-glow"}),t.default.createElement("div",{className:"vf-lines"}),t.default.createElement("button",{className:"frame",onClick:e.onShutter,"aria-label":`Open camera for unit #${e.unitNo}`},t.default.createElement(Ct,null),t.default.createElement("span",{className:"frame-text"},t.default.createElement("span",{className:"vf-label"},"Fill the frame"),t.default.createElement("span",{className:"vf-sub mono"},"BRAND \xB7 MODEL \xB7 SERIAL",t.default.createElement("br",null),"sharp, no glare")))),t.default.createElement("div",{className:"tips"},t.default.createElement("span",{className:"i"},"i"),t.default.createElement("span",null,"Your camera opens next. Claude reads the plate.")),t.default.createElement("div",{className:"controls"},t.default.createElement("button",{className:"ctl",onClick:e.onGallery},t.default.createElement("span",{className:"ctl-box"},"\u25A6"),t.default.createElement("span",{className:"ctl-label"},"Gallery")),t.default.createElement("button",{className:"shutter",onClick:e.onShutter,"aria-label":`Take photo for unit #${e.unitNo}`},t.default.createElement("span",null)),t.default.createElement("button",{className:"ctl",onClick:e.onNoPlate},t.default.createElement("span",{className:"ctl-box mono"},"\u2715"),t.default.createElement("span",{className:"ctl-label"},"No plate"))))}function $n(e){var r;let n=[["brand","BRAND"],["model","MODEL"],["serial","SERIAL"]],o=(r=n.find(([l])=>!e.progress[l]))==null?void 0:r[0];return t.default.createElement("div",{className:"screen dark"},t.default.createElement("div",{className:"dark-top"},t.default.createElement("button",{className:"btn-text light",onClick:e.onCancel},"\u2715 Cancel"),t.default.createElement("div",{className:"mono unit-plain"},"UNIT #",e.unitNo)),t.default.createElement("div",{className:"extract-body"},t.default.createElement("div",{className:"plate-card"},t.default.createElement("img",{src:e.photoUrl,alt:"Nameplate photo being read"}),t.default.createElement("span",{className:"scanline"}),t.default.createElement(Ct,{size:"sm"})),t.default.createElement("div",{className:"extract-copy"},t.default.createElement("div",{className:"reading","aria-live":"polite"},"Reading nameplate\u2026"),t.default.createElement("div",{className:"stepdots"},n.map(([l,i])=>t.default.createElement("span",{key:l,className:"sd"+(e.progress[l]?" done":l===o?" active":"")},t.default.createElement("i",null),i))),t.default.createElement("div",{className:"bar"},t.default.createElement("span",null)),t.default.createElement("div",{className:"model-tag mono"},"Claude \xB7 vision"),t.default.createElement("button",{className:"btn-text light skip",onClick:e.onSkip},"Type it in instead"))))}function ie(e){return t.default.createElement("div",{className:"field "+(e.className||"")},t.default.createElement("div",{className:"field-head"},e.htmlFor?t.default.createElement("label",{className:"label",htmlFor:e.htmlFor},"\u258C ",e.label):t.default.createElement("span",{className:"label"},"\u258C ",e.label),e.right),e.children)}function An(e){let n=e.draft,o=n.mode==="edit",r=new Set(n.read.low||[]),l=n.read.state==="ok",i=f=>r.has(f)?{read:{...n.read,low:(n.read.low||[]).filter(v=>v!==f)}}:{},u=!!(n.brand.trim()||n.model.trim()||n.serial.trim()||n.type),d=!o||pe(n.no,0)!=null,h=u&&d&&!e.saving,b=[n.brand,n.model,n.serial].filter(f=>f.trim()).length,N="No photo",y="Manual entry. Fill in the fields below.";o?(N=`Editing unit #${n.origNo}`,y=n.createdAt?`Logged ${xe(n.createdAt)}, ${ye(n.createdAt)}${e.loggedBy?` by ${e.loggedBy}`:""}.`:""):n.read.state==="ok"?(N="\u2713 Extracted from nameplate",y=r.size?`Claude read ${b} of 3 fields. Check the flagged ${r.size===1?"field":"fields"} against the photo.`:`Claude read ${b} of 3 fields. Confirm or edit.`):n.read.state==="notplate"||n.read.state==="error"?(N=n.read.state==="notplate"?"\u2715 No plate in photo":"Couldn\u2019t read the plate",y=n.read.message||""):n.read.state==="skipped"||n.read.state==="unavailable"?(N="Photo attached",y=n.read.message||"Type the values from the photo."):n.source==="noplate"?(N="\u2715 No nameplate present",y="Brand, model, serial set to \u201CNo Nameplate\u201D. Pick the type below."):n.photoUrl&&(N="Photo attached",y="Manual entry. Fill in the fields below.");let D=n.photoState==="uploading"?"Uploading":n.photoState==="failed"?"Not saved":n.photoState==="unstored"?"Not kept":"";return t.default.createElement("div",{className:"screen"},t.default.createElement("div",{className:"cf-head"},t.default.createElement("button",{className:"btn-text",onClick:e.onCancel},"\u2715 Cancel"),t.default.createElement("div",{className:"mono unit-plain dark-ink"},o?`EDIT #${n.origNo}`:`UNIT #${e.unitNo}`),t.default.createElement("div",{className:"spacer60"})),t.default.createElement("div",{className:"scroll"},t.default.createElement("div",{className:"form"},t.default.createElement("div",{className:"cf-photo-row"},n.photoUrl?t.default.createElement("button",{className:"cf-thumb",onClick:()=>e.onPhoto(n.photoUrl,o?`Unit #${n.origNo}`:`Unit #${e.unitNo}`),"aria-label":"Open photo"},t.default.createElement("img",{src:n.photoUrl,alt:""}),D&&t.default.createElement("span",{className:"ptag"+(n.photoState==="failed"?" bad":"")},D)):t.default.createElement("div",{className:"cf-nophoto mono"},"NO",t.default.createElement("br",null),"PHOTO"),t.default.createElement("div",{className:"cf-ext"},t.default.createElement("div",null,t.default.createElement("div",{className:"eyebrow"},N),t.default.createElement("div",{className:"cf-detail"},y)),t.default.createElement("div",{className:"cf-btns"},n.source==="photo"&&t.default.createElement("button",{className:"btn-mini",onClick:e.onRetake},"Retake"),e.canReread&&(e.rereading?t.default.createElement("button",{className:"btn-mini strong",onClick:e.onStopRead},"Reading\u2026 stop"):t.default.createElement("button",{className:"btn-mini",onClick:e.onReread,title:"Slower, more careful read"},"Re-read carefully")),n.source!=="photo"&&t.default.createElement("button",{className:"btn-mini",onClick:e.onAttach},n.photoUrl?"Replace photo":"Add photo")))),!o&&n.shownNo!=null&&e.unitNo!==n.shownNo&&t.default.createElement("div",{className:"inline-note",role:"alert"},"The count moved on another device. This unit will save as #",e.unitNo,", not #",n.shownNo,". Label it #",e.unitNo,"."),n.photoNote&&t.default.createElement("div",{className:"inline-note"},n.photoNote),o&&t.default.createElement(ie,{label:"Unit number",htmlFor:"f-no",right:t.default.createElement("span",{className:"hint"},"relabels this unit")},t.default.createElement("input",{id:"f-no",className:"input mono num-wide",type:"text",inputMode:"numeric",value:n.no,onChange:f=>e.onChange({no:f.target.value.replace(/[^0-9]/g,"")})})),t.default.createElement(ie,{label:"Brand",htmlFor:"f-brand",right:l&&n.brand?r.has("brand")?t.default.createElement("span",{className:"hint warn"},"check \xB7 hard to read"):t.default.createElement("span",{className:"hint ok"},"\u2713 Read"):null},t.default.createElement("input",{id:"f-brand",className:"input"+(r.has("brand")?" lowconf":""),type:"text",value:n.brand,autoComplete:"off",placeholder:"Brand from nameplate",onChange:f=>e.onChange({brand:f.target.value,...i("brand")})})),t.default.createElement(ie,{label:"Model",htmlFor:"f-model",right:r.has("model")?t.default.createElement("span",{className:"hint warn"},"check \xB7 hard to read"):t.default.createElement("span",{className:"hint"},"text \xB7 preserves zeros")},t.default.createElement("input",{id:"f-model",className:"input mono"+(r.has("model")?" lowconf":""),type:"text",value:n.model,autoComplete:"off",autoCapitalize:"characters",spellCheck:!1,placeholder:"Model number",onChange:f=>e.onChange({model:f.target.value,...i("model")})})),t.default.createElement(ie,{label:"Serial",htmlFor:"f-serial",right:t.default.createElement("span",{className:"mini-actions"},t.default.createElement("button",{className:"btn-mini",onClick:()=>e.onChange({serial:"No Serial",...i("serial")})},"No serial"),t.default.createElement("button",{className:"btn-mini",onClick:()=>e.onChange({serial:"Unreadable",...i("serial")})},"Unreadable"))},t.default.createElement("input",{id:"f-serial",className:"input mono"+(r.has("serial")?" lowconf":""),type:"text",value:n.serial,autoComplete:"off",autoCapitalize:"characters",spellCheck:!1,placeholder:"Serial number",onChange:f=>e.onChange({serial:f.target.value,...i("serial")})}),r.has("serial")&&t.default.createElement("div",{className:"field-note warn"},"Check the serial against the photo; part of it was hard to read."),e.dupSerialOf!=null&&t.default.createElement("div",{className:"field-note warn"},"Same serial as unit #",e.dupSerialOf," in this batch.")),t.default.createElement(ie,{label:"Color",right:n.colorHint&&n.color!==n.colorHint.color?t.default.createElement("button",{className:"hint link",onClick:()=>e.onChange({color:n.colorHint.color})},"suggested: ",n.colorHint.color,n.colorHint.reason?` \xB7 ${n.colorHint.reason}`:""):t.default.createElement("span",{className:"hint"},"user-supplied")},t.default.createElement("div",{className:"chips colors",role:"radiogroup","aria-label":"Color"},$e.map(f=>{var z;let v=n.color===f.name,C=!v&&((z=n.colorHint)==null?void 0:z.color)===f.name;return t.default.createElement("button",{key:f.name,role:"radio","aria-checked":v,className:"chip-btn color"+(v?" on":"")+(C?" suggested":""),onClick:()=>e.onChange({color:v?"":f.name})},t.default.createElement("span",{className:"sw lg",style:{background:f.swatch,borderColor:f.bd},"aria-hidden":"true"}),t.default.createElement("span",null,f.name))}))),t.default.createElement(ie,{label:"Appliance Type",right:n.type&&n.typeFromAI&&n.typeReason?t.default.createElement("span",{className:"hint ok"},"\u2713 from model \xB7 ",n.typeReason):null},t.default.createElement("button",{className:"input select",onClick:e.onOpenType},n.type?t.default.createElement("span",null,n.type):t.default.createElement("span",{className:"placeholder"},"Choose appliance type\u2026"),t.default.createElement("span",{className:"mono"},"\u25BE"))),t.default.createElement(ie,{label:"Notes",right:t.default.createElement("span",{className:"hint"},"optional \xB7 defects only")},t.default.createElement("div",{className:"chips notes"},en.map(f=>{let v=n.notes.includes(f);return t.default.createElement("button",{key:f,className:"chip-btn note"+(v?" on":""),"aria-pressed":v,onClick:()=>e.onChange({notes:v?n.notes.filter(C=>C!==f):[...n.notes,f]})},t.default.createElement("span",{className:"mono"},v?"\u2713":"+")," ",f)})),t.default.createElement("textarea",{id:"f-notes",className:"input area",rows:2,value:n.freeNotes,placeholder:"Other condition notes\u2026","aria-label":"Other condition notes",onChange:f=>e.onChange({freeNotes:f.target.value})})),t.default.createElement("div",{className:"form-end"}))),t.default.createElement("div",{className:"savebar"},e.saveError&&t.default.createElement("div",{className:"save-error",role:"alert"},e.saveError),!u&&!e.saveError&&t.default.createElement("div",{className:"save-hint"},"Add a brand, model, serial or type to save."),t.default.createElement("div",{className:"savebtns"},o?t.default.createElement(t.default.Fragment,null,t.default.createElement("button",{className:"btn-outline danger",onClick:e.onDelete,disabled:!!e.saving},"Delete"),t.default.createElement("button",{className:"btn-primary",onClick:()=>e.onSave(!1),disabled:!h},e.saving==="uploading"?"Uploading photo\u2026":e.saving?"Saving\u2026":"Save changes")):t.default.createElement(t.default.Fragment,null,t.default.createElement("button",{className:"btn-outline",onClick:()=>e.onSave(!1),disabled:!h},"Save",t.default.createElement("br",null),"& close"),t.default.createElement("button",{className:"btn-primary",onClick:()=>e.onSave(!0),disabled:!h},t.default.createElement("span",null,e.saving==="uploading"?"Uploading photo\u2026":e.saving?"Saving\u2026":"Save & capture next"),!e.saving&&t.default.createElement("span",{className:"mono arrow"},"\u2192"))))))}function De(e){return(0,t.useEffect)(()=>{let n=o=>{o.key==="Escape"&&e.onClose()};return window.addEventListener("keydown",n),()=>window.removeEventListener("keydown",n)},[e.onClose]),t.default.createElement("div",{className:"overlay",onClick:e.onClose},t.default.createElement("div",{className:"sheet"+(e.tall?" tall":"")+(e.accent?" accent":""),role:"dialog","aria-modal":"true","aria-labelledby":e.labelledBy,onClick:n=>n.stopPropagation()},e.children))}function de(e){return t.default.createElement("button",{className:"menu-item"+(e.danger?" danger":""),onClick:e.onClick},t.default.createElement("span",{className:"mi-icon "+(e.iconClass||"")},e.icon),t.default.createElement("span",null,t.default.createElement("span",{className:"mi-title"},e.title),t.default.createElement("span",{className:"mi-sub"},e.sub)))}function Io(e){let[n,o]=(0,t.useState)(e.batch.name),[r,l]=(0,t.useState)(String(e.batch.nextNumber)),[i,u]=(0,t.useState)(!1),d=pe(r,0),h=(0,t.useId)();return t.default.createElement(De,{onClose:e.onClose,labelledBy:h},t.default.createElement("div",{className:"sheet-head"},t.default.createElement("div",{className:"eyebrow"},"Edit batch"),t.default.createElement("div",{className:"sheet-title",id:h},"Name and counter")),t.default.createElement("div",{className:"sheet-body"},t.default.createElement("label",{className:"label",htmlFor:"eb-name"},"\u258C Batch name"),t.default.createElement("input",{id:"eb-name",className:"input",value:n,maxLength:80,onChange:b=>o(b.target.value)}),t.default.createElement("label",{className:"label gap",htmlFor:"eb-next"},"\u258C Next unit number"),t.default.createElement("input",{id:"eb-next",className:"input mono num-wide",inputMode:"numeric",value:r,onChange:b=>l(b.target.value.replace(/[^0-9]/g,""))}),t.default.createElement("div",{className:"field-note"},"The next capture on every device gets this number.")),t.default.createElement("div",{className:"sheet-btns"},t.default.createElement("button",{className:"btn-outline",onClick:e.onClose},"Cancel"),t.default.createElement("button",{className:"btn-primary",disabled:d==null||!n.trim()||i,onClick:async()=>{u(!0),await e.onSave(n,d),u(!1)}},i?"Saving\u2026":"Save")))}function In(e){let n=e.sheet,o=(0,t.useId)();if(!n)return null;let r=e.batch;if(n.kind==="photo")return t.default.createElement("div",{className:"photo-view",onClick:e.onClose,role:"dialog","aria-modal":"true","aria-label":n.caption},t.default.createElement("img",{src:n.url,alt:n.caption}),t.default.createElement("div",{className:"pv-bar"},t.default.createElement("span",{className:"mono"},n.caption),t.default.createElement("button",{className:"btn-text light",onClick:e.onClose},"\u2715 Close")));if(n.kind==="progress")return t.default.createElement("div",{className:"overlay"},t.default.createElement("div",{className:"sheet",role:"dialog","aria-modal":"true","aria-labelledby":o},t.default.createElement("div",{className:"sheet-head"},t.default.createElement("div",{className:"eyebrow"},"Working"),t.default.createElement("div",{className:"sheet-title",id:o},n.title)),t.default.createElement("div",{className:"sheet-body"},t.default.createElement("div",{className:"pbar"},t.default.createElement("span",{style:{width:`${Math.round(100*n.done/Math.max(1,n.total))}%`}})),t.default.createElement("div",{className:"field-note mono"},n.done," of ",n.total," steps \xB7 keep this page open"))));if(n.kind==="confirm")return t.default.createElement(De,{onClose:e.onClose,labelledBy:o,accent:!0},t.default.createElement("div",{className:"confirm-body"},t.default.createElement("div",{className:"sheet-title",id:o},n.title),t.default.createElement("p",{className:"confirm-text"},n.body),t.default.createElement("div",{className:"sheet-btns flush"},t.default.createElement("button",{className:"btn-outline",onClick:e.onClose},"Cancel"),t.default.createElement("button",{className:"btn-primary"+(n.danger?" danger":""),onClick:n.run,disabled:e.busy},n.action))));if(n.kind==="type")return t.default.createElement(De,{onClose:e.onClose,labelledBy:o,tall:!0},t.default.createElement("div",{className:"sheet-head row"},t.default.createElement("div",null,t.default.createElement("div",{className:"eyebrow"},"Appliance Type"),t.default.createElement("div",{className:"sheet-title",id:o},"Choose category")),t.default.createElement("button",{className:"btn-text",onClick:e.onClose,"aria-label":"Close"},"\u2715")),t.default.createElement("div",{className:"sheet-scroll"},ct.map(i=>t.default.createElement("div",{key:i.group},t.default.createElement("div",{className:"type-group"},i.group),i.items.map(u=>{var h;let d=((h=e.draft)==null?void 0:h.type)===u;return t.default.createElement("button",{key:u,className:"type-item"+(d?" sel":""),onClick:()=>e.onPickType(u)},t.default.createElement("span",null,u),d&&t.default.createElement("span",{className:"sel-tag"},"\u2713 Selected"))}))),t.default.createElement("div",{className:"form-end"})));if(!r)return null;if(n.kind==="editBatch")return t.default.createElement(Io,{batch:r,onClose:e.onClose,onSave:e.onSaveBatch});if(n.kind==="export"){let i=_e(r.name,e.records),u=[{ext:"xlsx",title:"Excel workbook (.xlsx)",sub:"Primary \xB7 text-format model/serial, summary sheet"},{ext:"csv",title:"CSV (.csv)",sub:"Flat export, same columns"},{ext:"docx",title:"Word document (.docx)",sub:"Landscape table, formatted report"}];return t.default.createElement(De,{onClose:e.onClose,labelledBy:o},t.default.createElement("div",{className:"sheet-head ink"},t.default.createElement("div",{className:"eyebrow"},"Export"),t.default.createElement("div",{className:"sheet-title mono-ish",id:o},i),t.default.createElement("div",{className:"sheet-sub"},e.records.length," records \xB7 model & serial stored as text")),u.map(d=>t.default.createElement("button",{key:d.ext,className:"menu-item",onClick:()=>e.onExport(d.ext),disabled:!e.records.length},t.default.createElement("span",{className:"file-ico"},t.default.createElement("span",{className:"dog"}),t.default.createElement("span",{className:"mono"},d.ext)),t.default.createElement("span",{className:"grow"},t.default.createElement("span",{className:"mi-title"},d.title),t.default.createElement("span",{className:"mi-sub"},d.sub)),t.default.createElement("span",{className:"mono dl"},"\u2193"))),t.default.createElement("div",{className:"form-end"}))}let l=e.stats;return t.default.createElement(De,{onClose:e.onClose,labelledBy:o},t.default.createElement("div",{className:"sheet-head"},t.default.createElement("div",{className:"eyebrow",id:o},r.name),t.default.createElement("div",{className:"menu-stats"},t.default.createElement("div",null,t.default.createElement("b",{className:"mono"},l.count),t.default.createElement("span",null,"Records")),t.default.createElement("div",null,t.default.createElement("b",{className:"mono"},l.noPlate),t.default.createElement("span",null,"No plate")),t.default.createElement("div",null,t.default.createElement("b",{className:"mono"},l.withNotes),t.default.createElement("span",null,"w/ notes")))),t.default.createElement(de,{icon:".xlsx",iconClass:"solid mono small",title:"Export inventory",sub:"XLSX \xB7 CSV \xB7 DOCX",onClick:e.onExportMenu}),e.writable&&e.batchOpen&&t.default.createElement(de,{icon:"#",iconClass:"mono",title:"Edit batch \xB7 counter",sub:`Currently: ${r.name} \xB7 next #${r.nextNumber}`,onClick:e.onEditBatch}),t.default.createElement(de,{icon:"\u2261",iconClass:"mono",title:"All batches",sub:"Switch batches or look up past ones",onClick:e.onAllBatches}),e.writable&&t.default.createElement(de,{icon:"+",iconClass:"mono",title:"Start new batch",sub:"This batch stays saved",onClick:e.onNewBatch}),e.writable&&(e.batchOpen?t.default.createElement(de,{icon:"\u2713",iconClass:"mono",title:"Close batch",sub:"Locks editing, frees storage. Reopen anytime.",onClick:e.onCloseBatch}):t.default.createElement(de,{icon:"\u21BA",iconClass:"mono",title:"Reopen batch",sub:"Unlock to add or edit units",onClick:e.onReopenBatch})),e.writable&&e.isAdmin&&t.default.createElement(de,{icon:"\u2715",iconClass:"mono danger",danger:!0,title:"Delete batch",sub:`Removes ${l.count} record${l.count===1?"":"s"} and photos everywhere`,onClick:e.onDeleteBatch}),t.default.createElement("div",{className:"form-end"}))}function En(e){return t.default.createElement(t.default.Fragment,null,e.toast&&t.default.createElement("div",{className:"toast-wrap","aria-live":"polite"},t.default.createElement("div",{className:"toast"},e.toast.kind==="saved"&&t.default.createElement("div",{className:"tick"},"\u2713"),t.default.createElement("div",{className:"toast-title"},e.toast.title),t.default.createElement("div",{className:"toast-detail mono"},e.toast.detail),e.toast.sub&&t.default.createElement("div",{className:"toast-sub"},e.toast.sub))),e.notice&&t.default.createElement("div",{className:"notice",role:"status"},t.default.createElement("span",null,e.notice),t.default.createElement("button",{className:"btn-text light",onClick:e.onDismiss,"aria-label":"Dismiss"},"\u2715")))}var Eo={status:"loading",db:null,assets:null,sample:null,downloads:null,user:null,uid:null,canWrite:!0,isAdmin:!1,imagesOK:!1};async function Te(e){let n=window.claude;if(!n||typeof n.use!="function")return null;try{return await n.use(e)??null}catch{return null}}var je="fc.lastBatch",Ve="fc.draft";function Fo(e){let[n,o]=(0,p.useState)(()=>typeof matchMedia=="function"?matchMedia(e).matches:!1);return(0,p.useEffect)(()=>{var i;if(typeof matchMedia!="function")return;let r=matchMedia(e),l=()=>o(r.matches);return l(),(i=r.addEventListener)==null||i.call(r,"change",l),()=>{var u;return(u=r.removeEventListener)==null?void 0:u.call(r,"change",l)}},[e]),n}function Fn(e,n,o,r){let l=o==="noplate";return{key:e,batchId:n,mode:"new",recId:null,no:"",shownNo:r,origNo:null,brand:l?"Unknown":"",model:l?"No Nameplate":"",serial:l?"No Nameplate":"",type:"",typeReason:"",typeFromAI:!1,color:"",colorHint:null,notes:l?["Nameplate worn off"]:[],freeNotes:"",source:o,photo:null,origPhoto:null,photoUrl:null,photoState:"none",photoNote:null,read:{state:"none"},by:null,createdAt:null}}function Un(e){return e&&/^[A-Za-z0-9_-]{8,64}$/.test(e)?"/_blob/"+e:null}function Mn(e){return e.toUpperCase().replace(/[\s-]/g,"")}function Uo(e){switch(e){case"quota_or_state":return"Photo storage is full, so this photo wasn\u2019t kept. The unit still saves.";case"too_large":return"Photo too large to keep. The unit still saves.";case"not_granted":case"capability_disabled":return"Photos aren\u2019t kept at your access level. The unit still saves.";default:return"Photo upload failed. The unit still saves; retake to try again."}}function Mo(){let[e,n]=(0,p.useState)(Eo),[o,r]=(0,p.useState)([]),[l,i]=(0,p.useState)(!1),[u,d]=(0,p.useState)(null),[h,b]=(0,p.useState)([]),[N,y]=(0,p.useState)(!1),[D,f]=(0,p.useState)(!1),[v,C]=(0,p.useState)("boot"),[z,w]=(0,p.useState)(null),[c,E]=(0,p.useState)(null),[L,H]=(0,p.useState)(null),[j,q]=(0,p.useState)(null),[ce,ae]=(0,p.useState)(null),[On,St]=(0,p.useState)(!1),[_n,Dt]=(0,p.useState)(null),[zn,Ge]=(0,p.useState)(null),[Ke,Wn]=(0,p.useState)({}),[Be,Tt]=(0,p.useState)(null),[Hn,Ye]=(0,p.useState)(null),[qe,Bt]=(0,p.useState)(null),[Pt,$t]=(0,p.useState)(0),[Xe,be]=(0,p.useState)(null),[At,Pe]=(0,p.useState)(!1),Je=Fo("(min-width: 980px)"),I=(0,p.useMemo)(()=>o.find(a=>a.id===u)||null,[o,u]),A=(0,p.useRef)(e);A.current=e;let X=(0,p.useRef)(c);X.current=c;let O=(0,p.useRef)(I);O.current=I;let J=(0,p.useRef)(h);J.current=h;let It=(0,p.useRef)(null),Et=(0,p.useRef)(null),Ze=(0,p.useRef)("capture"),Z=(0,p.useRef)(null),Q=(0,p.useRef)(null),jn=(0,p.useRef)(0),Ft=(0,p.useRef)(new Set),ue=(0,p.useRef)(null),Qe=(0,p.useRef)(null),Ut=(0,p.useRef)(null),Mt=(0,p.useRef)(void 0),Lt=(0,p.useRef)(void 0),M=(0,p.useCallback)((a,s=5200)=>{Ge(a),window.clearTimeout(Lt.current),Lt.current=window.setTimeout(()=>Ge(null),s)},[]),Re=(0,p.useCallback)((a,s=1300)=>{Dt(a),window.clearTimeout(Mt.current),Mt.current=window.setTimeout(()=>Dt(null),s)},[]),R=(0,p.useCallback)((a,s)=>{E(m=>m&&m.key===a?s(m):m)},[]);(0,p.useEffect)(()=>{let a=!0;return(async()=>{let[s,m,g,x,k]=await Promise.all([Te("db"),Te("assets"),Te("sample"),Te("downloads"),Te("user")]);if(!a)return;let S=null,T=!0,P=!1;if(k){try{P=await k.canEdit()||await k.isOwner()}catch{P=!1}try{S=await k.id()}catch{S=null}try{await k.can("data.write")===!1&&(T=!1)}catch{}}let B=!1;if(g)try{B=!!(await g.limits()).images}catch{B=!1}a&&n({status:s?"ready":"nostorage",db:s,assets:m,sample:g,downloads:x,user:k,uid:S,canWrite:T&&!!s,isAdmin:P&&!!s,imagesOK:B})})(),()=>{a=!1}},[]),(0,p.useEffect)(()=>{let a=e.db;return a?a.collection("batches").orderBy("updatedAt","desc").limit(1e3).onSnapshot(m=>{r(m.docs.map(g=>({id:g.id,...g.data()}))),i(!0)},m=>{_(m)==="unavailable"?window.setTimeout(()=>$t(g=>g+1),2e3):n(g=>({...g,status:"nostorage",canWrite:!1}))}):void 0},[e.db,Pt]);let Ot=!!(I!=null&&I.archived);(0,p.useEffect)(()=>{let a=e.db;if(b([]),f(!1),y(!1),Ye(null),!a||!u)return;let s=m=>{_(m)==="unavailable"&&window.setTimeout(()=>$t(g=>g+1),2e3)};return Ot?K(a,u).onSnapshot(m=>{let g=m.docs.flatMap(x=>{var k;return((k=x.data())==null?void 0:k.records)||[]});b(ke(g)),f(!0),y(!m.metadata.fromCache)},s):ee(a,u).onSnapshot(m=>{let g=m.docs.map(x=>({id:x.id,...x.data()}));b(ke(g)),f(!0),y(!m.metadata.fromCache&&!m.metadata.hasPendingWrites)},s)},[e.db,u,Ot,Pt]),(0,p.useEffect)(()=>{let a=e.db;!a||!I||!N||!e.canWrite||I.archived||I.status!=="open"||Ut.current!==I.id&&(Ut.current=I.id,pn(a,I,h).catch(()=>{}))},[e.db,e.canWrite,I,h,N]),(0,p.useEffect)(()=>{let a=e.user,s=[...new Set(h.map(g=>g.by).filter(g=>!!g))];if(!a||!s.length)return;let m=!0;return a.profiles(s).then(g=>{var k;if(!m)return;let x={};for(let S of s)x[S]=((k=g[S])==null?void 0:k.name)||"";Wn(x)}).catch(()=>{}),()=>{m=!1}},[e.user,h]),(0,p.useEffect)(()=>{v!=="batches"||!e.assets||Be||e.assets.list().then(a=>Tt(a.usage)).catch(()=>{})},[v,e.assets,Be]),(0,p.useEffect)(()=>{if(v!=="boot")return;if(e.status==="nostorage"){C("setup");return}if(!l)return;let a=G.get(je),s=o.find(m=>m.id===a);s&&s.status==="open"?(d(s.id),C("list")):o.length?C("batches"):C("setup")},[v,e.status,l,o]);let et=(0,p.useRef)(null);(0,p.useEffect)(()=>{if(!(!u||!l)){if(o.some(a=>a.id===u)){et.current=u;return}et.current!==u||Qe.current===u||(et.current=null,d(null),E(null),w(null),C("batches"),M("That batch was deleted on another device."))}},[o,u,l,M]),(0,p.useEffect)(()=>{if(!u){be(null);return}let a=G.get(Ve);be(a&&a.batchId===u&&!X.current?a:null)},[u]),(0,p.useEffect)(()=>{if(!c)return;let a=window.setTimeout(()=>{let{photoUrl:s,key:m,...g}=c;G.set(Ve,{batchId:c.batchId,savedAt:Date.now(),draft:g})},500);return()=>window.clearTimeout(a)},[c]),(0,p.useEffect)(()=>{if(!qe||v!=="list")return;let a=document.getElementById("rec-"+qe);a&&(a.scrollIntoView({block:"nearest",behavior:"smooth"}),Bt(null))},[qe,h,v]);let Vn=(0,p.useMemo)(()=>{let a=new Map;for(let s of h)a.set(s.no,(a.get(s.no)||0)+1);return new Set([...a.entries()].filter(([,s])=>s>1).map(([s])=>s))},[h]),Gn=(0,p.useMemo)(()=>{if(!c)return null;let a=Mn(c.serial);if(!a||tn.has(c.serial.trim().toLowerCase()))return null;let s=h.find(m=>m.id!==c.recId&&Mn(m.serial||"")===a);return s?s.no:null},[c,h]),_t=(0,p.useMemo)(()=>{let a=[...o].sort((s,m)=>m.createdAt-s.createdAt)[0];return a?{start:Math.max(1,a.nextNumber||1),from:a.name}:{start:1,from:null}},[o]),zt=(0,p.useMemo)(()=>{let a=o.length;for(let s of o)a+=s.archived?Math.ceil((s.count||0)/Ie):s.count||0;return{docs:a,pct:a/nn}},[o]),Wt=(0,p.useRef)(null),we=a=>{if(!a)return 1;let s=Wt.current;return s&&s.batchId===a.id&&Date.now()-s.at<15e3?Math.max(a.nextNumber,s.no+1):a.nextNumber},ve=e.canWrite&&e.status==="ready",Kn=!!I&&I.status==="open",tt=a=>{d(a),G.set(je,a),w(null),C("list")},nt=()=>{w(null),C("batches"),Tt(null)},Yn=async(a,s)=>{let m=A.current.db;if(m){Pe(!0);try{let g=await un(m,a.trim(),s,A.current.uid);r(x=>x.some(k=>k.id===g.id)?x:[g,...x]),tt(g.id)}catch(g){_(g)==="invalid_argument"&&n(x=>({...x,canWrite:!1})),M(me(g))}finally{Pe(!1)}}},ot=a=>{var s;Ze.current=a,(s=It.current)==null||s.click()},Ht=a=>{var s;Ze.current=a,(s=Et.current)==null||s.click()},qn=(a,s)=>{let m=++jn.current,g=A.current.assets;if(!g){Q.current={key:a,seq:m,p:Promise.resolve(null)};return}let x=/^image\/(jpeg|png|webp|gif)$/.test(s.type)?s.type:"image/jpeg",k=g.upload(s,{type:x}).then(S=>{let T=Q.current;return!T||T.seq!==m||Ft.current.has(a)?(g.delete(S.id).catch(()=>{}),null):(R(a,P=>({...P,photo:S.id,photoState:"stored",photoNote:null})),S.id)},S=>{var T;return((T=Q.current)==null?void 0:T.seq)===m&&R(a,P=>({...P,photoState:"failed",photoNote:Uo(_(S))})),null});Q.current={key:a,seq:m,p:k}},Xn=(a,s)=>{R(a,m=>{if(s.notAPlate)return{...m,read:{state:"notplate",tier:s.tier,message:"No nameplate found in this photo. Retake it, or type the values."}};let g=!!s.type&&(!m.type||m.typeFromAI);return{...m,brand:s.brand||m.brand,model:s.model||m.model,serial:s.serial||m.serial,type:g?s.type:m.type,typeReason:g?s.typeReason:m.typeReason,typeFromAI:g?!0:m.typeFromAI,colorHint:s.color?{color:s.color,reason:s.colorReason}:null,read:{state:"ok",tier:s.tier,low:s.low}}})},jt=async(a,s,m,g,x)=>{var T;let k=A.current;if(!k.sample||!k.imagesOK){R(a,P=>({...P,read:{state:"unavailable",message:"Plate reading isn\u2019t available in this view. Type the values from the photo."}})),x&&C("confirm");return}(T=ue.current)==null||T.abort();let S=new AbortController;ue.current=S,x?(H({key:a,url:m,progress:{brand:!1,model:!1,serial:!1}}),C("extracting")):St(!0);try{let P=await sn(k.sample,s,g,S.signal,B=>{x&&H(F=>F&&F.key===a?{...F,progress:B}:F)});Xn(a,P)}catch(P){let B=_(P);rn.has(B)&&n(F=>({...F,imagesOK:!1})),R(a,F=>({...F,read:B==="cancelled"?{state:"skipped"}:{state:"error",message:ln(B)}}))}finally{ue.current===S&&(ue.current=null),St(!1),x&&C(P=>{var B;return P==="extracting"&&((B=X.current)==null?void 0:B.key)===a?"confirm":P})}},Jn=async(a,s)=>{var P,B;let m=O.current;if(!m)return;let g;try{g=await on(a)}catch{M("That file isn\u2019t a photo that can be read. Use a JPEG or PNG.");return}Z.current=g.blob;let x=A.current.assets?"uploading":"unstored",k=A.current.assets?null:"Photos aren\u2019t kept at your access level. The unit still saves.",S,T=X.current;if(s==="capture"||!T){S=se(10);let F=Fn(S,m.id,"photo",we(m));F.photoUrl=g.url,F.photoState=x,F.photoNote=k,E(F),ae(null)}else S=T.key,T.photo&&T.photo!==T.origPhoto&&((P=A.current.assets)==null||P.delete(T.photo).catch(()=>{})),(B=T.photoUrl)!=null&&B.startsWith("blob:")&&URL.revokeObjectURL(T.photoUrl),R(S,F=>({...F,photoUrl:g.url,photo:null,photoState:x,photoNote:k,source:s==="retake"?"photo":F.source}));qn(S,g.blob),s!=="attach"&&await jt(S,g.blob,g.url,"quick",!0)},Vt=a=>{var m;let s=(m=a.target.files)==null?void 0:m[0];a.target.value="",s&&Jn(s,Ze.current)},Zn=()=>{let a=X.current;!a||!Z.current||!a.photoUrl||jt(a.key,Z.current,a.photoUrl,"default",!1)},Gt=()=>{var a;return(a=ue.current)==null?void 0:a.abort()},at=a=>{let s=O.current;s&&(Z.current=null,E(Fn(se(10),s.id,a,we(s))),ae(null),C("confirm"))},Qn=(a,s)=>{Ft.current.add(a.key);let m=A.current.assets;m&&a.photo&&a.photo!==s&&a.photo!==a.origPhoto&&m.delete(a.photo).catch(()=>{}),Q.current=null},st=(a,s)=>{var m,g;if(Qn(a,s),(m=a.photoUrl)!=null&&m.startsWith("blob:")){let x=a.photoUrl;window.setTimeout(()=>URL.revokeObjectURL(x),3e3)}(g=ue.current)==null||g.abort(),Z.current=null,G.del(Ve),be(null),E(null),H(null),ae(null)},Kt=()=>{let a=X.current;a&&st(a,null),w(null),C("list")},Rn=a=>{var s;Z.current=null,E({key:se(10),batchId:((s=O.current)==null?void 0:s.id)||"",mode:"edit",recId:a.id,no:String(a.no),shownNo:null,origNo:a.no,brand:a.brand||"",model:a.model||"",serial:a.serial||"",type:a.type||"",typeReason:a.typeReason||"",typeFromAI:!1,color:a.color||"",colorHint:null,notes:[...a.notes||[]],freeNotes:a.freeNotes||"",source:a.source,photo:a.photo,origPhoto:a.photo,photoUrl:Un(a.photo),photoState:a.photo?"stored":"none",photoNote:null,read:{state:"none"},by:a.by,createdAt:a.createdAt}),ae(null),C("confirm")},eo=()=>{let a=Xe;if(!a)return;Z.current=null;let s={...a.draft,key:se(10),shownNo:a.draft.mode==="new"?we(O.current):null,photoUrl:Un(a.draft.photo),photoState:a.draft.photo?"stored":"none",read:a.draft.read.state==="ok"?a.draft.read:{state:"none"}};be(null),E(s),C("confirm")},to=()=>{let a=Xe,s=A.current.assets;a&&s&&a.draft.photo&&a.draft.photo!==a.draft.origPhoto&&s.delete(a.draft.photo).catch(()=>{}),G.del(Ve),be(null)},no=async a=>{var k;let s=X.current,m=O.current,g=A.current.db;if(!s||!m||!g||j)return;ae(null);let x=s.photo;Q.current&&Q.current.key===s.key&&s.photoState==="uploading"&&(q("uploading"),x=await Q.current.p.catch(()=>null)),q("saving");try{let S={type:s.type,typeReason:s.type?s.typeReason:"",brand:s.brand.trim(),model:s.model.trim(),serial:s.serial.trim(),color:s.color,notes:s.notes,freeNotes:s.freeNotes.trim(),source:s.source,photo:x},T,P;if(s.mode==="new"){let B=await hn(g,m.id,s.shownNo??we(m),{...S,by:A.current.uid});T=B.no,P=B.id,Wt.current={batchId:m.id,no:B.no,at:Date.now()},B.renumberedFrom!=null?M(`Saved as #${B.no}. #${B.renumberedFrom} was just taken on another device \u2014 label this unit #${B.no}.`,9e3):Re({kind:"saved",title:"Saved",detail:`Unit #${B.no} written`})}else{let B=pe(s.no,0)??s.origNo??0;await fn(g,m.id,s.recId,{...S,no:B}),s.origPhoto&&s.origPhoto!==x&&((k=A.current.assets)==null||k.delete(s.origPhoto).catch(()=>{})),T=B,P=s.recId,Re({kind:"saved",title:"Updated",detail:`Unit #${B} saved`})}(s.photoState==="failed"||s.photoUrl&&!x&&s.mode==="new"&&A.current.assets)&&M(`Unit #${T} saved without its photo.`),st(s,x),Ye(null),Bt(P),C(a?"camera":"list")}catch(S){let T=_(S);T==="invalid_argument"&&s.mode==="edit"&&!J.current.some(P=>P.id===s.recId)?ae("This unit was deleted on another device. Cancel to go back, or save it again as a new unit from the list."):(T==="invalid_argument"&&n(P=>({...P,canWrite:!1})),ae(me(S)))}finally{q(null)}},Yt=a=>{w({kind:"confirm",title:`Delete unit #${a.no}?`,body:`${[a.brand,a.type].filter(Boolean).join(" \xB7 ")||"This unit"} and its photo will be removed from every device. This can\u2019t be undone.`,action:"Delete unit",danger:!0,run:async()=>{var g;let s=A.current.db,m=O.current;if(!(!s||!m)){w(null);try{let x=J.current.filter(S=>S.id!==a.id);await gn(s,m.id,a,x),a.photo&&((g=A.current.assets)==null||g.delete(a.photo).catch(()=>{}));let k=X.current;k&&k.recId===a.id&&(st(k,k.origPhoto),C("list")),M(`Unit #${a.no} deleted.`,3e3)}catch(x){M(me(x))}}}})},rt=async(a,s,m)=>{Pe(!0),w({kind:"progress",title:a,done:0,total:1});try{await s((g,x)=>w(k=>k&&k.kind==="progress"?{...k,done:g,total:x}:k)),w(null),M(m,3500)}catch(g){w(null),M(me(g))}finally{Pe(!1)}},oo=()=>{let a=O.current;a&&w({kind:"confirm",title:"Close this batch?",body:`${a.name} (${J.current.length} units) becomes read-only and is packed into a few storage slots. Export still works, and you can reopen it anytime.`,action:"Close batch",run:()=>{let s=A.current.db;s&&rt("Closing batch",m=>bn(s,a.id,m),`${a.name} closed.`)}})},qt=()=>{let a=O.current,s=A.current.db;!a||!s||rt("Reopening batch",m=>wn(s,a.id,m),`${a.name} reopened.`)},ao=()=>{let a=O.current;if(!a)return;let s=J.current.length;w({kind:"confirm",title:`Delete \u201C${a.name}\u201D?`,body:`This removes the batch, its ${s} unit${s===1?"":"s"} and their photos from every device. Export first if you need a copy. This can\u2019t be undone.`,action:"Delete batch",danger:!0,run:()=>{let m=A.current.db;m&&(Qe.current=a.id,rt("Deleting batch",async g=>{await vn(m,A.current.assets,a.id,g),G.get(je)===a.id&&G.del(je),d(null),C("batches")},`${a.name} deleted.`).finally(()=>{Qe.current=null}))}})},so=async(a,s)=>{let m=O.current,g=A.current.db;if(!(!m||!g))try{await mn(g,m.id,{name:a.trim()||m.name,nextNumber:s}),w(null),M("Batch updated.",2500)}catch(x){M(me(x))}},ro=async a=>{let s=O.current,m=A.current.downloads;if(!s)return;if(!m){M("Downloads aren\u2019t available in this view. Open the page in Claude to export.");return}let g={batch:s,records:J.current,exportedAt:new Date,names:Ke},x=`${_e(s.name,J.current)}.${a}`,k=a==="xlsx"?new Blob([yn(g)],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}):a==="docx"?new Blob([Cn(g)],{type:"application/vnd.openxmlformats-officedocument.wordprocessingml.document"}):new Blob([kn(g)],{type:"text/csv"});w(null);try{(await m.save({filename:x,data:k})).status==="saved"&&Re({kind:"exported",title:"Downloaded",detail:x,sub:`${J.current.length} records exported`},1800)}catch(S){let T=_(S);if(T==="declined")return;M(T==="rate_limited"?"A download is already waiting for you. Finish that one first.":T==="extension_not_enabled"||T==="rejected_extension"?`.${a} files can\u2019t be saved here. Try another format.`:"Couldn\u2019t save the file here. Try again, or open the page in Claude on a computer.")}},lt=we(I),lo=(0,p.useMemo)(()=>({count:h.length,noPlate:h.filter(a=>a.source==="noplate").length,withNotes:h.filter(a=>W(a)).length}),[h]),V=null;return v==="boot"||v==="setup"?V=p.default.createElement(Tn,{status:e.status==="loading"||v==="boot"&&!l?"loading":e.status==="nostorage"?"nostorage":ve?"ready":"readonly",hasBatches:o.length>0,suggestedStart:_t.start,continuesFrom:_t.from,busy:At,onBack:nt,onBegin:Yn}):v==="batches"?V=p.default.createElement(kt,{batches:o,writable:ve,photoUsage:Be,capacity:zt,onOpen:tt,onNew:()=>C("setup")}):v==="list"&&I?V=p.default.createElement(Bn,{batch:I,records:h,loaded:D,wide:Je,writable:ve,names:Ke,dupNos:Vn,expanded:Hn,pendingDraft:Xe,onToggle:a=>Ye(s=>s===a?null:a),onBack:nt,onMenu:()=>w({kind:"menu"}),onCapture:()=>ot("capture"),onNoPlate:()=>at("noplate"),onManual:()=>at("manual"),onEdit:Rn,onDelete:Yt,onPhoto:(a,s)=>w({kind:"photo",url:a,caption:s}),onExport:()=>w({kind:"export"}),onReopen:qt,onResume:eo,onDiscard:to}):v==="camera"&&I?V=p.default.createElement(Pn,{unitNo:lt,onCancel:()=>C("list"),onShutter:()=>ot("capture"),onGallery:()=>Ht("capture"),onNoPlate:()=>at("noplate")}):v==="extracting"&&L?V=p.default.createElement($n,{unitNo:lt,photoUrl:L.url,progress:L.progress,onSkip:Gt,onCancel:Kt}):v==="confirm"&&c&&I?V=p.default.createElement(An,{draft:c,unitNo:lt,wide:Je,saving:j,saveError:ce,dupSerialOf:Gn,canReread:!!Z.current&&!!e.sample&&e.imagesOK&&c.source==="photo",rereading:On,loggedBy:c.by&&Ke[c.by]||"",onChange:a=>R(c.key,s=>({...s,...a})),onCancel:Kt,onRetake:()=>ot("retake"),onAttach:()=>Ht("attach"),onReread:Zn,onStopRead:Gt,onOpenType:()=>w({kind:"type"}),onPhoto:(a,s)=>w({kind:"photo",url:a,caption:s}),onSave:no,onDelete:()=>{let a=h.find(s=>s.id===c.recId);a&&Yt(a)}}):u&&!I&&!l?V=p.default.createElement("div",{className:"screen"},p.default.createElement("div",{className:"loading-note"},"Opening batch\u2026")):V=p.default.createElement(kt,{batches:o,writable:ve,photoUsage:Be,capacity:zt,onOpen:tt,onNew:()=>C("setup")}),p.default.createElement("div",{className:"app"+(Je?" wide":"")},V,p.default.createElement(In,{sheet:z,batch:I,records:h,stats:lo,writable:ve,isAdmin:e.isAdmin,batchOpen:Kn,draft:c,busy:At,onClose:()=>w(null),onPickType:a=>{c&&R(c.key,s=>({...s,type:a,typeReason:"manual",typeFromAI:!1})),w(null)},onExportMenu:()=>w({kind:"export"}),onExport:ro,onEditBatch:()=>w({kind:"editBatch"}),onSaveBatch:so,onAllBatches:nt,onNewBatch:()=>{w(null),C("setup")},onCloseBatch:oo,onReopenBatch:()=>{w(null),qt()},onDeleteBatch:ao}),p.default.createElement(En,{toast:_n,notice:zn,onDismiss:()=>Ge(null)}),p.default.createElement("input",{ref:It,type:"file",accept:"image/*",capture:"environment",hidden:!0,onChange:Vt}),p.default.createElement("input",{ref:Et,type:"file",accept:"image/*",hidden:!0,onChange:Vt}))}(0,Ln.createRoot)(document.getElementById("root")).render(p.default.createElement(Mo,null));})();
+
+</script>
+</body></html>
