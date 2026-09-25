@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 const read = (path) => readFileSync(new URL('../' + path, import.meta.url), 'utf8');
 
@@ -17,7 +18,7 @@ const jsFiles = [
   'api/sample.js',
 ];
 for (const file of jsFiles) {
-  execFileSync(process.execPath, ['--check', new URL('../' + file, import.meta.url).pathname], { stdio: 'pipe' });
+  execFileSync(process.execPath, ['--check', fileURLToPath(new URL('../' + file, import.meta.url))], { stdio: 'pipe' });
 }
 
 process.env.SESSION_SECRET = 'test-secret-0123456789-test-secret-0123456789';
