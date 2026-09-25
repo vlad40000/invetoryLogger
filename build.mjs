@@ -31,6 +31,7 @@ const result = await esbuild.build({
 
 const js = result.outputFiles[0].text.replace(/<\/script/gi, '<\\/script');
 const css = readFileSync('src/styles.css', 'utf8');
+const loginHtml = readFileSync('src/login.html', 'utf8');
 const REACT = 'https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js';
 const REACT_DOM = 'https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js';
 const FONTS =
@@ -56,4 +57,5 @@ mkdirSync('dist', { recursive: true });
 writeFileSync('dist/appliance-inventory.html', html);
 writeFileSync('dist/index.html', `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"></head><body>${html}</body></html>`);
 copyFileSync('src/runtime-shim.js', 'dist/runtime-shim.js');
+writeFileSync('dist/login.html', loginHtml);
 console.log(`dist/appliance-inventory.html  ${(html.length / 1024).toFixed(1)} KB (js ${(js.length / 1024).toFixed(1)} KB)`);
