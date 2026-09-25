@@ -30,6 +30,34 @@ await sql`CREATE INDEX IF NOT EXISTS docs_parent_idx ON docs (parent)`;
 console.log('  ✓ docs_parent_idx');
 
 await sql`
+  CREATE OR REPLACE FUNCTION jsonb_deep_merge(target jsonb, patch jsonb)
+  RETURNS jsonb
+  LANGUAGE sql
+  IMMUTABLE
+  AS \$\$
+    SELECT CASE
+      WHEN jsonb_typeof(target) = 'object' AND jsonb_typeof(patch) = 'object' THEN
+        COALESCE((
+          SELECT jsonb_object_agg(key, value)
+          FROM (
+            SELECT
+              COALESCE(t.key, p.key) AS key,
+              CASE
+                WHEN t.value IS NULL THEN p.value
+                WHEN p.value IS NULL THEN t.value
+                ELSE jsonb_deep_merge(t.value, p.value)
+              END AS value
+            FROM jsonb_each(target) AS t
+            FULL JOIN jsonb_each(patch) AS p USING (key)
+          ) merged
+        ), '{}'::jsonb)
+      ELSE patch
+    END
+  \$\$
+`;
+console.log('  ✓ jsonb_deep_merge');
+
+await sql`
   CREATE TABLE IF NOT EXISTS leases (
     path        text PRIMARY KEY,
     holder      text NOT NULL,
