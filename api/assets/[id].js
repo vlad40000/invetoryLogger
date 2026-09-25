@@ -10,7 +10,9 @@ export default async function handler(req, res) {
   const { id } = req.query;
 
   if (req.method === 'GET') {
-    // Blob redirect — no auth required so the app can render photos freely.
+    const session = requireSession(req, res);
+    if (!session) return;
+
     try {
       const rows = await sql`SELECT url FROM assets WHERE id = ${id}`;
       if (rows.length === 0) return res.status(404).json({ error: 'Not found' });
