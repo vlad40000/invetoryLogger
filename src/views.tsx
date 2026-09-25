@@ -578,7 +578,7 @@ export function CameraScreen(p: {
       </div>
       <div className="tips">
         <span className="i">i</span>
-        <span>Your camera opens next. Claude reads the plate.</span>
+        <span>Your camera opens next. AI reads the plate.</span>
       </div>
       <div className="controls">
         <button className="ctl" onClick={p.onGallery}>
@@ -641,7 +641,7 @@ export function ExtractingScreen(p: {
           <div className="bar">
             <span />
           </div>
-          <div className="model-tag mono">Claude · vision</div>
+          <div className="model-tag mono">Vision AI</div>
           <button className="btn-text light skip" onClick={p.onSkip}>
             Type it in instead
           </button>
@@ -710,8 +710,8 @@ export function ConfirmScreen(p: {
   } else if (d.read.state === 'ok') {
     label = '✓ Extracted from nameplate';
     detail = low.size
-      ? `Claude read ${nRead} of 3 fields. Check the flagged ${low.size === 1 ? 'field' : 'fields'} against the photo.`
-      : `Claude read ${nRead} of 3 fields. Confirm or edit.`;
+      ? `AI read ${nRead} of 3 fields. Check the flagged ${low.size === 1 ? 'field' : 'fields'} against the photo.`
+      : `AI read ${nRead} of 3 fields. Confirm or edit.`;
   } else if (d.read.state === 'notplate' || d.read.state === 'error') {
     label = d.read.state === 'notplate' ? '✕ No plate in photo' : 'Couldn’t read the plate';
     detail = d.read.message || '';
