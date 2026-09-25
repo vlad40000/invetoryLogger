@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Sign in — Appliance Inventory Logger</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --paper: #F4F2ED;
+      --ink: #0F0F0E;
+      --signal: #E8472C;
+      --muted: #6B6860;
+      --border: #D9D6CE;
+      font-family: 'IBM Plex Sans', system-ui, sans-serif;
+    }
+    body {
+      background: var(--paper);
+      color: var(--ink);
+      min-height: 100dvh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .card {
+      width: 100%;
+      max-width: 360px;
+      background: #fff;
+      border: 1px solid var(--border);
+      padding: 36px 32px 32px;
+    }
+    h1 {
+      font-size: 1.125rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      margin-bottom: 8px;
+    }
+    p.sub {
+      font-size: 0.875rem;
+      color: var(--muted);
+      margin-bottom: 28px;
+    }
+    label {
+      display: block;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    input[type="password"] {
+      display: block;
+      width: 100%;
+      font-family: inherit;
+      font-size: 1rem;
+      padding: 10px 12px;
+      border: 1.5px solid var(--border);
+      background: var(--paper);
+      color: var(--ink);
+      outline: none;
+      border-radius: 0;
+      margin-bottom: 20px;
+    }
+    input[type="password"]:focus { border-color: var(--ink); }
+    button {
+      display: block;
+      width: 100%;
+      font-family: inherit;
+      font-size: 0.9375rem;
+      font-weight: 600;
+      padding: 12px;
+      background: var(--ink);
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      border-radius: 0;
+      letter-spacing: 0.01em;
+    }
+    button:active { opacity: 0.85; }
+    .error {
+      margin-top: 16px;
+      font-size: 0.875rem;
+      color: var(--signal);
+      display: none;
+    }
+    .error.visible { display: block; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Appliance Inventory Logger</h1>
+    <p class="sub">Enter the passcode to access your batch.</p>
+    <form id="form">
+      <label for="passcode">Passcode</label>
+      <input id="passcode" type="password" name="passcode" autocomplete="current-password" autofocus required>
+      <button type="submit">Sign in</button>
+      <p class="error" id="error">Incorrect passcode. Try again.</p>
+    </form>
+  </div>
+  <script>
+    document.getElementById('form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const passcode = document.getElementById('passcode').value;
+      const errEl = document.getElementById('error');
+      errEl.classList.remove('visible');
+      try {
+        const res = await fetch('/api/session', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ passcode }),
+          credentials: 'same-origin',
+        });
+        if (res.ok) {
+          window.location.replace('/');
+        } else {
+          errEl.classList.add('visible');
+          document.getElementById('passcode').value = '';
+        }
+      } catch {
+        errEl.textContent = 'Network error. Check your connection.';
+        errEl.classList.add('visible');
+      }
+    });
+  </script>
+</body>
+</html>

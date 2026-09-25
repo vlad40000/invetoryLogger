@@ -1,0 +1,14 @@
+{
+  "rewrites": [
+    { "source": "/_blob/:id", "destination": "/api/assets/:id" },
+    { "source": "/", "destination": "/index.html" }
+  ],
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store" }
+      ]
+    }
+  ]
+}
