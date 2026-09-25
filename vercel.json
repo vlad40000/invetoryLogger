@@ -1,4 +1,6 @@
 {
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
   "rewrites": [
     { "source": "/_blob/:id", "destination": "/api/assets/:id" },
     { "source": "/", "destination": "/index.html" }
@@ -8,6 +10,12 @@
       "source": "/api/(.*)",
       "headers": [
         { "key": "Cache-Control", "value": "no-store" }
+      ]
+    },
+    {
+      "source": "/_blob/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "private, no-store" }
       ]
     }
   ]
