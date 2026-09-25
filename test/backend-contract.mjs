@@ -63,9 +63,11 @@ const assetById = read('api/assets/[id].js');
 assert.match(assetById, /if \(req\.method === 'GET'\)[\s\S]*requireSession\(req, res\)/);
 
 const sample = read('api/sample.js');
-assert.match(sample, /claude-haiku-4-5-20251001/);
-assert.match(sample, /claude-sonnet-5/);
-assert.match(sample, /err\?\.status === 429/);
+assert.match(sample, /GoogleGenAI/);
+assert.match(sample, /GEMINI_API_KEY/);
+assert.match(sample, /gemini-3\\.8-flash/);
+assert.match(sample, /responseMimeType: 'application\\/json'/);
+assert.match(sample, /status === 429/);
 assert.match(sample, /code: 'rate_limited'/);
 
 const vercel = JSON.parse(read('vercel.json'));
@@ -82,3 +84,7 @@ assert.match(login, /new URLSearchParams\(window\.location\.search\)/);
 assert.match(login, /!requested\.startsWith\('\/\/'\)/);
 
 console.log('standalone backend contract: ok');
+
+const pkg = JSON.parse(read('package.json'));
+assert.equal(pkg.dependencies['@google/genai'], '2.24.0');
+assert.equal(pkg.dependencies['@anthropic-ai/sdk'], undefined);
